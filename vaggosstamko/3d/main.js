@@ -1,0 +1,269 @@
+import * as THREE from '/vaggosstamko/3d/node_modules/three/build/three.module.js';
+import ClearingLogger from '/vaggosstamko/3d/debug.module.js';
+import dumpObject from '/vaggosstamko/3d/scenegraph.module.js';
+import {GLTFLoader} from '/vaggosstamko/3d/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+
+let clock, mixer, scene, camera, renderer, currentTile, cameraPosition;
+let totalTiles = 0;
+let jumpAnimation; // Player animations
+let playerOnFloor = false;
+let gameStarted = false;
+let jumpAllowed = true;
+let world;
+let player = null;
+let playerBody = null;
+
+let registeredLastJump = true;
+
+const cameraOffset = new THREE.Vector3(0, 6, -6);
+
+// Debugger
+const logger = new ClearingLogger(document.querySelector('#debug pre'));
+
+{
+  world = new CANNON.World();
+  world.gravity.set(0, -150, 0);
+  world.broadphase = new CANNON.NaiveBroadphase();
+  world.solver.iterations = 40;
+}
+
+// Renderer
+{
+  const canvas = document.querySelector('#c');
+  renderer = new THREE.WebGLRenderer({
+    canvas,
+    alpha: true,
+    premultipliedAlpha: false,
+    antialias: true,
+  });
+  renderer.shadowMap.enabled = true;
+  renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
+}
+
+// Camera
+{
+  const fov = 75;
+  const aspect = window.innerWidth / window.innerHeight;  // the canvas default
+  const near = 0.1;
+  const far = 120;
+  camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
+  camera.lookAt(0, 0, 50);
+}
+
+// Clock
+clock = new THREE.Clock();
+
+// Scene
+{
+  scene = new THREE.Scene();
+  const color = 0xFFFFEE;
+  const near = 0;
+  const far = 100;
+  scene.fog = new THREE.Fog(color, near, far);
+  scene.background = new THREE.Color('#ccffff');
+}
+
+// Lights
+{
+  const color = 0xFFFF99;
+  const intensity = 1;
+  const directionalLight = new THREE.DirectionalLight(color, intensity);
+  directionalLight.position.set(-5, 20, -5);
+  directionalLight.target.position.set(0, 5, 0);
+   
+  directionalLight.castShadow = true;
+  //Set up shadow properties for the light
+  directionalLight.shadow.mapSize.width = 256; // default
+  directionalLight.shadow.mapSize.height = 256; // default
+  directionalLight.shadow.camera.near = 0.5; // default
+  directionalLight.shadow.camera.far = 100; // default
+  scene.add(directionalLight);
+
+  const ambientLight = new THREE.AmbientLight( 0x404040, 0.7 ); // soft white light
+  scene.add( ambientLight);
+
+  const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.8 );
+	hemiLight.position.set( 0, 20, 0 );
+	scene.add( hemiLight);
+
+}
+
+// Load assets
+{
+  const loader = new GLTFLoader();
+  loader.load("resources/models/alien.gltf", function(gltf) {
+    player = gltf.scene;
+
+    player.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    scene.add(gltf.scene);
+    mixer = new THREE.AnimationMixer( gltf.scene );
+    
+    jumpAnimation = mixer.clipAction( gltf.animations[ 0 ] ); // access first animation clip
+    jumpAnimation.clampWhenFinished = true;
+    jumpAnimation.setLoop(THREE.LoopOnce);
+
+    player.position.set(0, 0.5, 0);
+    
+    const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
+    let mass = 100;
+    playerBody = new CANNON.Body({mass, shape});
+    playerBody.position.set(0, 1.5, 0);
+    world.addBody(playerBody);
+    
+  });
+}
+
+const tiles = [];
+const tileBodies = [];
+
+// Make tiles
+function makeTile(color, x, y, z) {
+  const boxWidth = 9;
+  const boxHeight = 1;
+  const boxDepth = 9;
+  const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+
+  const material = new THREE.MeshPhongMaterial({color});
+
+  const cube = new THREE.Mesh(geometry, material);
+  cube.receiveShadow = true;
+  scene.add(cube);
+
+  const shape = new CANNON.Box(new CANNON.Vec3(boxWidth/2, boxHeight/2, boxDepth/2));
+  let mass = 0;
+  const body = new CANNON.Body({mass, shape});
+  body.position.set(x, y, z);
+  world.addBody(body);
+
+  cube.position.set(x, y, z);
+
+  totalTiles += 1;
+  tiles.push(cube);
+  tileBodies.push(body);
+  return {
+    threejs: cube,
+    cannonjs: body,
+    number: totalTiles,
+  };
+}
+
+for (let i = 0; i < 20; i++) {
+  makeTile(0xaa8844, 0, i*2, i*10);
+}
+
+currentTile = 0;
+cameraPosition = 0;
+
+function resizeRendererToDisplaySize(renderer) {
+  const canvas = renderer.domElement;
+  const pixelRatio = window.devicePixelRatio;
+  const width  = canvas.clientWidth  * pixelRatio | 0;
+  const height = canvas.clientHeight * pixelRatio | 0;
+  const needResize = canvas.width !== width || canvas.height !== height;
+  if (needResize) {
+    renderer.setSize(width, height, false);
+  }
+  return needResize;
+}
+renderer.render(scene, camera);
+
+function render(time) {
+  time *= 0.001;  // convert time to seconds
+  //logger.log('time:', time);
+  if (resizeRendererToDisplaySize(renderer)) {
+    const canvas = renderer.domElement;
+    camera.aspect = canvas.clientWidth / canvas.clientHeight;
+    camera.updateProjectionMatrix();
+  }
+  logger.log('test');
+  logger.render(); // Debugger
+  renderer.render(scene, camera);
+
+  requestAnimationFrame(render);
+}
+
+requestAnimationFrame(render);
+
+
+window.addEventListener("click", () => {
+  if (!gameStarted) {
+    gameStarted = true;
+  } else {
+    if (jumpAllowed) {
+      jump();
+    }
+  }
+})
+
+function jump() {
+  jumpAllowed = false;
+  jumpAnimation.setDuration(0.5);
+  jumpAnimation.play();
+
+  tileBodies[currentTile+1].addEventListener("collide", function listener(e){
+    tileBodies[currentTile+1].removeEventListener("collide", listener);
+    playerBody.velocity.y = 0; 
+    playerBody.velocity.z = 0;
+    jumpAllowed = true;
+    registeredLastJump = false;
+    
+    
+  } );
+
+  setTimeout(() => {
+    playerBody.applyImpulse(new CANNON.Vec3(0, 5000, 0), playerBody.position);
+    playerBody.velocity.z = 40 * 3 / Math.PI;
+  }, 100);
+}
+
+function updatePhysics() {
+  world.step(1/40);
+  if (!jumpAllowed) {
+    if (playerBody.position.z >= tiles[currentTile + 1].position.z) {
+      playerBody.velocity.z = 0;
+    }
+
+    
+  } 
+
+  if (!registeredLastJump) {
+    registeredLastJump = true;
+    currentTile += 1;
+    jumpAnimation.reset();
+    jumpAnimation.stop();
+  }
+
+  if (player) {
+    player.position.copy(playerBody.position);
+    player.position.y += -1;
+    
+  }
+    
+}
+
+function animate() {
+  updatePhysics();
+  logger.log(currentTile);
+  if (cameraPosition < currentTile) {
+    camera.position.y += 0.2
+    camera.position.z += 1
+
+    if (camera.position.z >= tiles[currentTile].position.z + cameraOffset.z) cameraPosition += 1;
+  }
+
+  requestAnimationFrame( animate );
+  
+  var delta = clock.getDelta();
+  
+  if ( mixer ) mixer.update( delta );
+
+  renderer.render( scene, camera );
+}
+
+animate();
+
