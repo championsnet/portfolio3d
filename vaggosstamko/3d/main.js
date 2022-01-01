@@ -208,24 +208,44 @@ function render(time) {
 
 requestAnimationFrame(render);
 
+// Start game controls
 window.addEventListener("click", () => {
   if (!gameStarted && player) {
     gameStarted = true;
-  } else {
-    if (actionAllowed && isJumpAllowed(playerDirection)) {
-      console.log(playerDirection);
-      jump(0.5, target);
-    }
+  } 
+});
+
+// Jump controls
+window.addEventListener("keydown", function(event) {
+  if (gameStarted && actionAllowed && isJumpAllowed(playerDirection)) {
+    if (event.key == " ") jump(0.5, target);
+  }
+});
+window.addEventListener('swiped-up', function(e) {
+  if (gameStarted && actionAllowed && isJumpAllowed(playerDirection)) {
+    jump(0.5, target);
   }
 });
 
+// Rotate controls
 window.addEventListener("keydown", function(event) {
   if (gameStarted && actionAllowed) {
     if (event.key == "ArrowRight") rotate('right');
     if (event.key == "ArrowLeft") rotate('left')
   }
 });
+window.addEventListener("swiped-right", function(event) {
+  if (gameStarted && actionAllowed) {
+    rotate('right');
+  }
+});
+window.addEventListener("swiped-left", function(event) {
+  if (gameStarted && actionAllowed) {
+    rotate('left');
+  }
+});
 
+// Check if JUMP is allowed on specified direction
 function isJumpAllowed(direction) {
   if (direction in tilesJSON[currentTile]) {
     target = tilesJSON[currentTile][direction];
@@ -234,6 +254,7 @@ function isJumpAllowed(direction) {
   else return false;
 }
 
+// Initiate Rotation
 function rotate(direction) {
   rotationTracker = player.rotation.y;
   actionAllowed = false;
@@ -274,6 +295,7 @@ function rotate(direction) {
   }
 }
 
+// Initiate Jump
 function jump(duration, target) {
   
   actionAllowed = false;
@@ -295,6 +317,7 @@ function jump(duration, target) {
   }, duration/5 * 1000);
 }
 
+// Handle all movements
 function updatePhysics() {
   // If on jump
   if (jumpStarted) {
@@ -377,6 +400,7 @@ function updatePhysics() {
     
 }
 
+// Handle all animation and object movements
 function animate() {
   delta = clock.getDelta();
   updatePhysics();
