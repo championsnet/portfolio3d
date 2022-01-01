@@ -229,7 +229,6 @@ window.addEventListener("keydown", function(event) {
 function isJumpAllowed(direction) {
   if (direction in tilesJSON[currentTile]) {
     target = tilesJSON[currentTile][direction];
-    if (currentTile == 0) target = 19;
     return true;
   }
   else return false;
@@ -307,7 +306,6 @@ function updatePhysics() {
     if (playerV.y > 80) 
     {
       camera.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta / 4;
-      console.log(playerV.y);
     }
     if (playerDopple.position.y <= tiles[target].position.y + 0.6) {
       playerDopple.position.y = tiles[target].position.y + 0.5;
