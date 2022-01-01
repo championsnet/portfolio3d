@@ -2,8 +2,9 @@ import * as THREE from '/vaggosstamko/3d/node_modules/three/build/three.module.j
 import ClearingLogger from '/vaggosstamko/3d/debug.module.js';
 import dumpObject from '/vaggosstamko/3d/scenegraph.module.js';
 import {GLTFLoader} from '/vaggosstamko/3d/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
+import {OrbitControls} from '/vaggosstamko/3d/node_modules/three/examples/jsm/controls/OrbitControls.js';
 
-let clock, mixer, scene, camera, renderer, currentTile, cameraPosition;
+let clock, mixer, scene, camera, renderer, currentTile, cameraPosition, directionalLight, hemiLight;
 let totalTiles = 0;
 let jumpAnimation; // Player animations
 let playerOnFloor = false;
@@ -16,6 +17,7 @@ let playerBody = null;
 let registeredLastJump = true;
 
 const cameraOffset = new THREE.Vector3(0, 6, -6);
+const lightOffset = new THREE.Vector3(-5, 20, -10);
 
 // Debugger
 const logger = new ClearingLogger(document.querySelector('#debug pre'));
@@ -41,15 +43,13 @@ const logger = new ClearingLogger(document.querySelector('#debug pre'));
 }
 
 // Camera
-{
-  const fov = 75;
-  const aspect = window.innerWidth / window.innerHeight;  // the canvas default
-  const near = 0.1;
-  const far = 120;
-  camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
-  camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
-  camera.lookAt(0, 0, 50);
-}
+const fov = 75;
+const aspect = window.innerWidth / window.innerHeight;  // the canvas default
+const near = 0.1;
+const far = 100;
+camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
+camera.lookAt(0, 0, 50);
 
 // Clock
 clock = new THREE.Clock();
@@ -62,32 +62,40 @@ clock = new THREE.Clock();
   const far = 100;
   scene.fog = new THREE.Fog(color, near, far);
   scene.background = new THREE.Color('#ccffff');
+  scene.add(camera);
 }
 
-// Lights
-{
-  const color = 0xFFFF99;
-  const intensity = 1;
-  const directionalLight = new THREE.DirectionalLight(color, intensity);
-  directionalLight.position.set(-5, 20, -5);
-  directionalLight.target.position.set(0, 5, 0);
-   
-  directionalLight.castShadow = true;
-  //Set up shadow properties for the light
-  directionalLight.shadow.mapSize.width = 256; // default
-  directionalLight.shadow.mapSize.height = 256; // default
-  directionalLight.shadow.camera.near = 0.5; // default
-  directionalLight.shadow.camera.far = 100; // default
-  scene.add(directionalLight);
+// LIGHTS
+const color = 0xFFFF99;
+const intensity = 1;
+directionalLight = new THREE.DirectionalLight(color, intensity);
+// Make light follow camera
+scene.add(directionalLight);
+directionalLight.position.set(lightOffset.x, lightOffset.y, lightOffset.z);
+  
+//Set up shadow properties for the light
+const d = 15;
+directionalLight.castShadow = true;
+directionalLight.shadow.camera.left = - d;
+directionalLight.shadow.camera.right = d;
+directionalLight.shadow.camera.top = d;
+directionalLight.shadow.camera.bottom = - d;
+directionalLight.shadow.mapSize.width = 512; // default
+directionalLight.shadow.mapSize.height = 512; // default
+directionalLight.shadow.camera.near = 0.5; // default
+directionalLight.shadow.camera.far = 300; // default
+//scene.add(directionalLight);
 
-  const ambientLight = new THREE.AmbientLight( 0x404040, 0.7 ); // soft white light
-  scene.add( ambientLight);
+const helper = new THREE.CameraHelper( directionalLight.shadow.camera );
+scene.add( helper );
 
-  const hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.8 );
-	hemiLight.position.set( 0, 20, 0 );
-	scene.add( hemiLight);
+const ambientLight = new THREE.AmbientLight( 0x404040, 0.7 ); // soft white light
+scene.add( ambientLight);
 
-}
+hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.8 );
+hemiLight.position.set( 0, 20, 0 );
+scene.add( hemiLight);
+
 
 // Load assets
 {
@@ -100,7 +108,9 @@ clock = new THREE.Clock();
         object.castShadow = true;
       }
     });
-    scene.add(gltf.scene);
+    scene.add(player);
+    directionalLight.target = player;
+    scene.add( directionalLight.target );
     mixer = new THREE.AnimationMixer( gltf.scene );
     
     jumpAnimation = mixer.clipAction( gltf.animations[ 0 ] ); // access first animation clip
@@ -108,7 +118,6 @@ clock = new THREE.Clock();
     jumpAnimation.setLoop(THREE.LoopOnce);
 
     player.position.set(0, 0.5, 0);
-    
     const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
     let mass = 100;
     playerBody = new CANNON.Body({mass, shape});
@@ -131,7 +140,7 @@ function makeTile(color, x, y, z) {
   const material = new THREE.MeshPhongMaterial({color});
 
   const cube = new THREE.Mesh(geometry, material);
-  cube.receiveShadow = true;
+  
   scene.add(cube);
 
   const shape = new CANNON.Box(new CANNON.Vec3(boxWidth/2, boxHeight/2, boxDepth/2));
@@ -141,6 +150,7 @@ function makeTile(color, x, y, z) {
   world.addBody(body);
 
   cube.position.set(x, y, z);
+  cube.receiveShadow = true;
 
   totalTiles += 1;
   tiles.push(cube);
@@ -252,6 +262,9 @@ function animate() {
   if (cameraPosition < currentTile) {
     camera.position.y += 0.2
     camera.position.z += 1
+
+    directionalLight.lookAt(player.position.x, player.position.y, player.position.z);
+    directionalLight.position.set(camera.position.x + lightOffset.x - cameraOffset.x, camera.position.y + lightOffset.y - cameraOffset.y, camera.position.z + lightOffset.z - cameraOffset.z);
 
     if (camera.position.z >= tiles[currentTile].position.z + cameraOffset.z) cameraPosition += 1;
   }
