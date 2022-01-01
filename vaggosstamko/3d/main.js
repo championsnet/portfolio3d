@@ -10,9 +10,14 @@ let jumpAnimation; // Player animations
 let playerOnFloor = false;
 let gameStarted = false;
 let jumpAllowed = true;
-let world;
+let jumpStarted = false;
+//let world;
 let player = null;
-let playerBody = null;
+let playerDopple = null;
+//let playerBody = null;
+let playerV = new THREE.Vector3(0, 0, 0);
+let jumpStartTime, jumpDuration;
+let delta;
 
 let registeredLastJump = true;
 
@@ -22,12 +27,12 @@ const lightOffset = new THREE.Vector3(-5, 20, -10);
 // Debugger
 const logger = new ClearingLogger(document.querySelector('#debug pre'));
 
-{
+/*{
   world = new CANNON.World();
   world.gravity.set(0, -150, 0);
   world.broadphase = new CANNON.NaiveBroadphase();
   world.solver.iterations = 40;
-}
+}*/
 
 // Renderer
 {
@@ -36,7 +41,7 @@ const logger = new ClearingLogger(document.querySelector('#debug pre'));
     canvas,
     alpha: true,
     premultipliedAlpha: false,
-    antialias: true,
+    //antialias: true,
   });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
@@ -86,8 +91,8 @@ directionalLight.shadow.camera.near = 0.5; // default
 directionalLight.shadow.camera.far = 300; // default
 //scene.add(directionalLight);
 
-const helper = new THREE.CameraHelper( directionalLight.shadow.camera );
-scene.add( helper );
+//const helper = new THREE.CameraHelper( directionalLight.shadow.camera );
+//scene.add( helper );
 
 const ambientLight = new THREE.AmbientLight( 0x404040, 0.7 ); // soft white light
 scene.add( ambientLight);
@@ -97,7 +102,7 @@ hemiLight.position.set( 0, 20, 0 );
 scene.add( hemiLight);
 
 
-// Load assets
+// LOAD ASSETS
 {
   const loader = new GLTFLoader();
   loader.load("resources/models/alien.gltf", function(gltf) {
@@ -118,19 +123,28 @@ scene.add( hemiLight);
     jumpAnimation.setLoop(THREE.LoopOnce);
 
     player.position.set(0, 0.5, 0);
-    const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
+
+    /*const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
     let mass = 100;
     playerBody = new CANNON.Body({mass, shape});
     playerBody.position.set(0, 1.5, 0);
-    world.addBody(playerBody);
+    world.addBody(playerBody);*/
     
   });
 }
 
-const tiles = [];
-const tileBodies = [];
+// PLAYER DOPPLEGANGER
+const geometry = new THREE.BoxGeometry(1, 0.001, 1);
+const material = new THREE.MeshPhongMaterial({color});
+playerDopple = new THREE.Mesh(geometry, material);
+playerDopple.visible = false;
+playerDopple.position.set(0, 0.5, 0);
+scene.add(playerDopple);
 
-// Make tiles
+const tiles = [];
+//const tileBodies = [];
+
+// TILE MAKER
 function makeTile(color, x, y, z) {
   const boxWidth = 9;
   const boxHeight = 1;
@@ -143,21 +157,21 @@ function makeTile(color, x, y, z) {
   
   scene.add(cube);
 
-  const shape = new CANNON.Box(new CANNON.Vec3(boxWidth/2, boxHeight/2, boxDepth/2));
+  /*const shape = new CANNON.Box(new CANNON.Vec3(boxWidth/2, boxHeight/2, boxDepth/2));
   let mass = 0;
   const body = new CANNON.Body({mass, shape});
   body.position.set(x, y, z);
-  world.addBody(body);
+  world.addBody(body);*/
 
   cube.position.set(x, y, z);
   cube.receiveShadow = true;
 
   totalTiles += 1;
   tiles.push(cube);
-  tileBodies.push(body);
+  //tileBodies.push(body);
   return {
     threejs: cube,
-    cannonjs: body,
+    //cannonjs: body,
     number: totalTiles,
   };
 }
@@ -201,21 +215,24 @@ requestAnimationFrame(render);
 
 
 window.addEventListener("click", () => {
-  if (!gameStarted) {
+  if (!gameStarted && player) {
     gameStarted = true;
   } else {
     if (jumpAllowed) {
-      jump();
+      jump(0.5);
     }
   }
 })
 
-function jump() {
+function jump(duration) {
+  
   jumpAllowed = false;
-  jumpAnimation.setDuration(0.5);
+  jumpAnimation.setDuration(duration);
   jumpAnimation.play();
+  jumpDuration = duration;
+  
 
-  tileBodies[currentTile+1].addEventListener("collide", function listener(e){
+  /*tileBodies[currentTile+1].addEventListener("collide", function listener(e){
     tileBodies[currentTile+1].removeEventListener("collide", listener);
     playerBody.velocity.y = 0; 
     playerBody.velocity.z = 0;
@@ -223,20 +240,51 @@ function jump() {
     registeredLastJump = false;
     
     
-  } );
+  } );*/
 
   setTimeout(() => {
-    playerBody.applyImpulse(new CANNON.Vec3(0, 5000, 0), playerBody.position);
-    playerBody.velocity.z = 40 * 3 / Math.PI;
-  }, 100);
+    //playerBody.applyImpulse(new CANNON.Vec3(0, 5000, 0), playerBody.position);
+    //playerBody.velocity.z = 40 * 3 / Math.PI;
+    playerV.y = 22*4/duration/5;
+    playerV.z = 10*4/duration/5;
+    jumpStartTime = clock.getElapsedTime();
+    jumpStarted = true;
+  }, duration/5);
 }
 
 function updatePhysics() {
-  world.step(1/40);
-  if (!jumpAllowed) {
-    if (playerBody.position.z >= tiles[currentTile + 1].position.z) {
+  //world.step(1/40);
+
+  // If on jump
+  if (jumpStarted) {
+    /*if (playerBody.position.z >= tiles[currentTile + 1].position.z) {
       playerBody.velocity.z = 0;
+    }*/
+    
+    let timeCoefficient = (clock.elapsedTime - jumpStartTime)*4/jumpDuration/5;
+    if (timeCoefficient >= 1) timeCoefficient = 1;
+    logger.log(timeCoefficient);
+    playerDopple.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta;
+    if (playerDopple.position.y <= tiles[currentTile+1].position.y + 0.6) {
+      playerDopple.position.y = tiles[currentTile+1].position.y + 0.5;
     }
+
+    playerDopple.position.z += playerV.z * delta;
+    if (playerDopple.position.z >= tiles[currentTile+1].position.z) {
+      playerDopple.position.z = tiles[currentTile+1].position.z;
+    }
+
+    if (playerDopple.position.y == tiles[currentTile+1].position.y + 0.5 && playerDopple.position.z == tiles[currentTile+1].position.z) {
+      jumpAllowed = true;
+      jumpStarted = false;
+      currentTile += 1;
+      jumpAnimation.reset();
+      jumpAnimation.stop();
+      playerV.y = 0;
+      playerV.z = 0;
+    }
+
+    if (player) player.position.copy(playerDopple.position);
 
     
   } 
@@ -249,14 +297,15 @@ function updatePhysics() {
   }
 
   if (player) {
-    player.position.copy(playerBody.position);
-    player.position.y += -1;
+    //player.position.copy(playerBody.position);
+    //player.position.y += -1;
     
   }
     
 }
 
 function animate() {
+  delta = clock.getDelta();
   updatePhysics();
   logger.log(currentTile);
   if (cameraPosition < currentTile) {
@@ -270,8 +319,6 @@ function animate() {
   }
 
   requestAnimationFrame( animate );
-  
-  var delta = clock.getDelta();
   
   if ( mixer ) mixer.update( delta );
 
