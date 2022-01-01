@@ -9,32 +9,27 @@ let totalTiles = 0;
 let jumpAnimation; // Player animations
 let playerOnFloor = false;
 let gameStarted = false;
-let jumpAllowed = true;
+let actionAllowed = true;
 let jumpStarted = false;
-//let world;
 let player = null;
 let playerDopple = null;
-//let playerBody = null;
 let playerV = new THREE.Vector3(0, 0, 0);
-let jumpStartTime, jumpDuration;
+let jumpStartTime, jumpDuration, target;
 let delta;
 
-let registeredLastJump = true;
+let onRightRotation = false;
+let onLeftRotation = false;
+let rotationTracker;
+let playerDirection = "front";
 
-const cameraOffset = new THREE.Vector3(0, 6, -6);
+
+const cameraOffset = new THREE.Vector3(0, 5, -6);
 const lightOffset = new THREE.Vector3(-5, 20, -10);
 
-// Debugger
+// DEBUGGER
 const logger = new ClearingLogger(document.querySelector('#debug pre'));
 
-/*{
-  world = new CANNON.World();
-  world.gravity.set(0, -150, 0);
-  world.broadphase = new CANNON.NaiveBroadphase();
-  world.solver.iterations = 40;
-}*/
-
-// Renderer
+// RENDERER
 {
   const canvas = document.querySelector('#c');
   renderer = new THREE.WebGLRenderer({
@@ -47,7 +42,7 @@ const logger = new ClearingLogger(document.querySelector('#debug pre'));
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
 }
 
-// Camera
+// CAMERA
 const fov = 75;
 const aspect = window.innerWidth / window.innerHeight;  // the canvas default
 const near = 0.1;
@@ -56,10 +51,10 @@ camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
 camera.lookAt(0, 0, 50);
 
-// Clock
+// CLOCK
 clock = new THREE.Clock();
 
-// Scene
+// SCENE
 {
   scene = new THREE.Scene();
   const color = 0xFFFFEE;
@@ -123,12 +118,7 @@ scene.add( hemiLight);
     jumpAnimation.setLoop(THREE.LoopOnce);
 
     player.position.set(0, 0.5, 0);
-
-    /*const shape = new CANNON.Box(new CANNON.Vec3(1, 1, 1));
-    let mass = 100;
-    playerBody = new CANNON.Body({mass, shape});
-    playerBody.position.set(0, 1.5, 0);
-    world.addBody(playerBody);*/
+    player.add(camera);
     
   });
 }
@@ -141,6 +131,13 @@ playerDopple.visible = false;
 playerDopple.position.set(0, 0.5, 0);
 scene.add(playerDopple);
 
+let tilesJSON;
+d3.json('/vaggosstamko/3d/resources/tiles.json').then(function (data) {
+  tilesJSON = data;
+  for (let i = 0; i < tilesJSON.length; i++) {
+    makeTile(0xaa8844, tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z);
+  }
+});
 const tiles = [];
 //const tileBodies = [];
 
@@ -176,9 +173,7 @@ function makeTile(color, x, y, z) {
   };
 }
 
-for (let i = 0; i < 20; i++) {
-  makeTile(0xaa8844, 0, i*2, i*10);
-}
+
 
 currentTile = 0;
 cameraPosition = 0;
@@ -213,93 +208,173 @@ function render(time) {
 
 requestAnimationFrame(render);
 
-
 window.addEventListener("click", () => {
   if (!gameStarted && player) {
     gameStarted = true;
   } else {
-    if (jumpAllowed) {
-      jump(0.5);
+    if (actionAllowed && isJumpAllowed(playerDirection)) {
+      console.log(playerDirection);
+      jump(0.5, target);
     }
   }
-})
+});
 
-function jump(duration) {
+window.addEventListener("keydown", function(event) {
+  if (gameStarted && actionAllowed) {
+    if (event.key == "ArrowRight") rotate('right');
+    if (event.key == "ArrowLeft") rotate('left')
+  }
+});
+
+function isJumpAllowed(direction) {
+  if (direction in tilesJSON[currentTile]) {
+    target = tilesJSON[currentTile][direction];
+    if (currentTile == 0) target = 19;
+    return true;
+  }
+  else return false;
+}
+
+function rotate(direction) {
+  rotationTracker = player.rotation.y;
+  actionAllowed = false;
+  if (direction == 'right') {
+    onRightRotation = true;
+    switch (playerDirection) {
+      case 'front': 
+        playerDirection = 'right';
+        break;
+      case 'right': 
+        playerDirection = 'back';
+        break;
+      case 'back': 
+        playerDirection = 'left';
+        break;
+      case 'left':
+        playerDirection = 'front';
+        break;
+    }
+    console.log(playerDirection);
+  } else {
+    onLeftRotation = true;
+    switch (playerDirection) {
+      case 'front': 
+        playerDirection = 'left';
+        break;
+      case 'right': 
+        playerDirection = 'front';
+        break;
+      case 'back': 
+        playerDirection = 'right';
+        break;
+      case 'left': 
+        playerDirection = 'back';
+        break;
+    }
+    console.log(playerDirection);
+  }
+}
+
+function jump(duration, target) {
   
-  jumpAllowed = false;
-  jumpAnimation.setDuration(duration);
+  actionAllowed = false;
+  jumpStarted = false;
+  jumpAnimation.setDuration(7*duration/5);
   jumpAnimation.play();
   jumpDuration = duration;
-  
 
-  /*tileBodies[currentTile+1].addEventListener("collide", function listener(e){
-    tileBodies[currentTile+1].removeEventListener("collide", listener);
-    playerBody.velocity.y = 0; 
-    playerBody.velocity.z = 0;
-    jumpAllowed = true;
-    registeredLastJump = false;
-    
-    
-  } );*/
+  let requiredVy = 20 + Math.abs(tiles[target].position.y - tiles[currentTile].position.y);
+  const requiredVz = (tiles[target].position.z - tiles[currentTile].position.z) / 10 * 10;
+  const requiredVx = (tiles[target].position.x - tiles[currentTile].position.x) / 10 * 10;
 
   setTimeout(() => {
-    //playerBody.applyImpulse(new CANNON.Vec3(0, 5000, 0), playerBody.position);
-    //playerBody.velocity.z = 40 * 3 / Math.PI;
-    playerV.y = 22*4/duration/5;
-    playerV.z = 10*4/duration/5;
+    playerV.y = requiredVy * 5/duration/5;
+    playerV.z = requiredVz * 4/duration/5;
+    playerV.x = requiredVx * 4/duration/5;
     jumpStartTime = clock.getElapsedTime();
     jumpStarted = true;
-  }, duration/5);
+  }, duration/5 * 1000);
 }
 
 function updatePhysics() {
-  //world.step(1/40);
-
   // If on jump
   if (jumpStarted) {
-    /*if (playerBody.position.z >= tiles[currentTile + 1].position.z) {
-      playerBody.velocity.z = 0;
-    }*/
     
     let timeCoefficient = (clock.elapsedTime - jumpStartTime)*4/jumpDuration/5;
     if (timeCoefficient >= 1) timeCoefficient = 1;
-    logger.log(timeCoefficient);
     playerDopple.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta;
-    if (playerDopple.position.y <= tiles[currentTile+1].position.y + 0.6) {
-      playerDopple.position.y = tiles[currentTile+1].position.y + 0.5;
+    camera.position.y -= playerV.y * Math.cos(Math.PI*timeCoefficient) * delta / 4;
+    if (playerV.y > 80) 
+    {
+      camera.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta / 4;
+      console.log(playerV.y);
+    }
+    if (playerDopple.position.y <= tiles[target].position.y + 0.6) {
+      playerDopple.position.y = tiles[target].position.y + 0.5;
+      camera.position.y = cameraOffset.y;
     }
 
     playerDopple.position.z += playerV.z * delta;
-    if (playerDopple.position.z >= tiles[currentTile+1].position.z) {
-      playerDopple.position.z = tiles[currentTile+1].position.z;
+    if (playerV.z >= 0) {
+      if (playerDopple.position.z >= tiles[target].position.z) {
+        playerDopple.position.z = tiles[target].position.z;
+      }
+    } else {
+      if (playerDopple.position.z <= tiles[target].position.z) {
+        playerDopple.position.z = tiles[target].position.z;
+      }
     }
+    
 
-    if (playerDopple.position.y == tiles[currentTile+1].position.y + 0.5 && playerDopple.position.z == tiles[currentTile+1].position.z) {
-      jumpAllowed = true;
+    playerDopple.position.x += playerV.x * delta;
+    if (playerV.x >= 0) {
+      if (playerDopple.position.x >= tiles[target].position.x) {
+        playerDopple.position.x = tiles[target].position.x;
+      }
+    } else {
+      if (playerDopple.position.x <= tiles[target].position.x) {
+        playerDopple.position.x = tiles[target].position.x;
+      }
+    }
+    
+
+    if (playerDopple.position.y == tiles[target].position.y + 0.5 
+        && playerDopple.position.z == tiles[target].position.z
+        && playerDopple.position.x == tiles[target].position.x) {
+
       jumpStarted = false;
-      currentTile += 1;
+      currentTile = target;
       jumpAnimation.reset();
       jumpAnimation.stop();
       playerV.y = 0;
       playerV.z = 0;
+      playerV.x = 0;
+      actionAllowed = true;
     }
 
     if (player) player.position.copy(playerDopple.position);
-
-    
+    directionalLight.lookAt(player.position.x, player.position.y, player.position.z);
+    directionalLight.position.set(player.position.x + lightOffset.x, player.position.y + lightOffset.y, player.position.z + lightOffset.z);
   } 
 
-  if (!registeredLastJump) {
-    registeredLastJump = true;
-    currentTile += 1;
-    jumpAnimation.reset();
-    jumpAnimation.stop();
+  // If on right rotation
+  if (onRightRotation) {
+    player.rotation.y -= 5 * delta;
+    if (player.rotation.y - rotationTracker <= -Math.PI / 2) {
+      player.rotation.y = rotationTracker - Math.PI / 2;
+      onRightRotation = false;
+      actionAllowed = true;
+    }
   }
 
-  if (player) {
-    //player.position.copy(playerBody.position);
-    //player.position.y += -1;
-    
+  // If on left rotation
+  if (onLeftRotation) {
+    player.rotation.y += 5 * delta;
+    if (player.rotation.y - rotationTracker >= Math.PI / 2) {
+      player.rotation.y = rotationTracker + Math.PI / 2;
+      onLeftRotation = false;
+      actionAllowed = true;
+    }
   }
     
 }
@@ -308,15 +383,6 @@ function animate() {
   delta = clock.getDelta();
   updatePhysics();
   logger.log(currentTile);
-  if (cameraPosition < currentTile) {
-    camera.position.y += 0.2
-    camera.position.z += 1
-
-    directionalLight.lookAt(player.position.x, player.position.y, player.position.z);
-    directionalLight.position.set(camera.position.x + lightOffset.x - cameraOffset.x, camera.position.y + lightOffset.y - cameraOffset.y, camera.position.z + lightOffset.z - cameraOffset.z);
-
-    if (camera.position.z >= tiles[currentTile].position.z + cameraOffset.z) cameraPosition += 1;
-  }
 
   requestAnimationFrame( animate );
   
