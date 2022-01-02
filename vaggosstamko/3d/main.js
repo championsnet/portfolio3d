@@ -2,12 +2,14 @@ import * as THREE from '/vaggosstamko/3d/node_modules/three/build/three.module.j
 import ClearingLogger from '/vaggosstamko/3d/debug.module.js';
 import dumpObject from '/vaggosstamko/3d/scenegraph.module.js';
 import {GLTFLoader} from '/vaggosstamko/3d/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
-import {OrbitControls} from '/vaggosstamko/3d/node_modules/three/examples/jsm/controls/OrbitControls.js';
+import { ImprovedNoise } from '/vaggosstamko/3d/node_modules/three/examples/jsm/math/ImprovedNoise.js';
 
 let clock, mixer, scene, camera, renderer, currentTile, cameraPosition, directionalLight, hemiLight;
 let totalTiles = 0;
-let jumpAnimation; // Player animations
+const jumps = []; // Player jump animations
+const rotationPoses = []; // Player rotation animations
 let playerOnFloor = false;
+let gameReady = false;
 let gameStarted = false;
 let actionAllowed = true;
 let jumpStarted = false;
@@ -15,7 +17,7 @@ let player = null;
 let playerDopple = null;
 let playerV = new THREE.Vector3(0, 0, 0);
 let jumpStartTime, jumpDuration, target;
-let delta;
+let delta, randomJump;
 
 let onRightRotation = false;
 let onLeftRotation = false;
@@ -23,8 +25,24 @@ let rotationTracker;
 let playerDirection = "front";
 
 
-const cameraOffset = new THREE.Vector3(0, 5, -6);
+const cameraOffset = new THREE.Vector3(0, 6, -7);
 const lightOffset = new THREE.Vector3(-5, 20, -10);
+
+const loadManager = new THREE.LoadingManager();
+
+// LOADING SCENE
+loadManager.onLoad = function ( url, itemsLoaded, itemsTotal ) {
+
+  document.querySelector('#start').style.opacity = 1;
+  const toChange = document.getElementsByTagName('polyline');
+  
+  for (let i=0; i<toChange.length; i++) {
+    toChange[i].classList.remove("stroke-animation");
+    toChange[i].style.stroke = '#aa8844';
+  }
+	gameReady = true;
+  console.log("ready");
+};
 
 // DEBUGGER
 const logger = new ClearingLogger(document.querySelector('#debug pre'));
@@ -36,7 +54,7 @@ const logger = new ClearingLogger(document.querySelector('#debug pre'));
     canvas,
     alpha: true,
     premultipliedAlpha: false,
-    //antialias: true,
+    antialias: true,
   });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
@@ -45,8 +63,8 @@ const logger = new ClearingLogger(document.querySelector('#debug pre'));
 // CAMERA
 const fov = 75;
 const aspect = window.innerWidth / window.innerHeight;  // the canvas default
-const near = 0.1;
-const far = 100;
+const near = 1;
+const far = 500;
 camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
 camera.lookAt(0, 0, 50);
@@ -57,11 +75,8 @@ clock = new THREE.Clock();
 // SCENE
 {
   scene = new THREE.Scene();
-  const color = 0xFFFFEE;
-  const near = 0;
-  const far = 100;
-  scene.fog = new THREE.Fog(color, near, far);
-  scene.background = new THREE.Color('#ccffff');
+  scene.background = new THREE.Color( 0xe6ffff );
+  scene.fog = new THREE.FogExp2( 0xe6ffff, 0.0025 );
   scene.add(camera);
 }
 
@@ -83,7 +98,7 @@ directionalLight.shadow.camera.bottom = - d;
 directionalLight.shadow.mapSize.width = 512; // default
 directionalLight.shadow.mapSize.height = 512; // default
 directionalLight.shadow.camera.near = 0.5; // default
-directionalLight.shadow.camera.far = 300; // default
+directionalLight.shadow.camera.far = 100; // default
 //scene.add(directionalLight);
 
 //const helper = new THREE.CameraHelper( directionalLight.shadow.camera );
@@ -99,7 +114,7 @@ scene.add( hemiLight);
 
 // LOAD ASSETS
 {
-  const loader = new GLTFLoader();
+  const loader = new GLTFLoader(loadManager);
   loader.load("resources/models/alien.gltf", function(gltf) {
     player = gltf.scene;
 
@@ -113,33 +128,82 @@ scene.add( hemiLight);
     scene.add( directionalLight.target );
     mixer = new THREE.AnimationMixer( gltf.scene );
     
-    jumpAnimation = mixer.clipAction( gltf.animations[ 0 ] ); // access first animation clip
-    jumpAnimation.clampWhenFinished = true;
-    jumpAnimation.setLoop(THREE.LoopOnce);
+    
+    let animation = mixer.clipAction( gltf.animations[ 0 ] ); // access first animation clip
+    animation.clampWhenFinished = true;
+    animation.setLoop(THREE.LoopOnce);
+    jumps.push(animation);
+
+    animation = mixer.clipAction( gltf.animations[ 1 ] ); // access first animation clip
+    animation.clampWhenFinished = true;
+    animation.setLoop(THREE.LoopOnce);
+    jumps.push(animation);
+
+    // Right rotation
+    animation = mixer.clipAction( gltf.animations[ 2 ] ); // access first animation clip
+    animation.clampWhenFinished = true;
+    animation.setLoop(THREE.LoopOnce);
+    rotationPoses.push(animation);
+
+    // Left rotation
+    animation = mixer.clipAction( gltf.animations[ 3 ] ); // access first animation clip
+    animation.clampWhenFinished = true;
+    animation.setLoop(THREE.LoopOnce);
+    rotationPoses.push(animation);
 
     player.position.set(0, 0.5, 0);
     player.add(camera);
-    
+  });
+
+  loader.load("resources/models/scene.gltf", function(gltf) {
+    const terrain = gltf.scene;
+    scene.add(terrain);
+    terrain.position.set(0, -20, 30);
+    terrain.scale.set(30, 30, 30);
+  });
+
+  loader.load("resources/models/sign1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(4, 0.5, 4);
+    sign1.scale.set(2, 2, 2);
+    sign1.rotation.y = Math.PI/8;
   });
 }
 
 // PLAYER DOPPLEGANGER
-const geometry = new THREE.BoxGeometry(1, 0.001, 1);
-const material = new THREE.MeshPhongMaterial({color});
-playerDopple = new THREE.Mesh(geometry, material);
-playerDopple.visible = false;
-playerDopple.position.set(0, 0.5, 0);
-scene.add(playerDopple);
+{
+  const geometry = new THREE.BoxGeometry(1, 0.001, 1);
+  const material = new THREE.MeshPhongMaterial({color});
+  playerDopple = new THREE.Mesh(geometry, material);
+  playerDopple.visible = false;
+  playerDopple.position.set(0, 0.5, 0);
+  scene.add(playerDopple);
+}
 
 let tilesJSON;
 d3.json('/vaggosstamko/3d/resources/tiles.json').then(function (data) {
   tilesJSON = data;
   for (let i = 0; i < tilesJSON.length; i++) {
     makeTile(0xaa8844, tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z);
+    /*if (i == 0) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");
+    if (i == 1) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");
+    if (i == 3) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "right");
+    if (i == 3) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "front");
+    if (i == 6) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "back");
+    if (i == 6) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");
+    if (i == 8) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");
+    if (i == 8) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "front");
+    if (i == 13) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "front");
+    if (i == 13) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "right");
+    if (i == 14) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "right");
+    if (i == 15) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "right");
+    if (i == 15) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "back");
+    if (i == 17) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");
+    if (i == 19) makeGlass(tilesJSON[i].x, tilesJSON[i].y, tilesJSON[i].z, "left");*/
   }
 });
 const tiles = [];
-//const tileBodies = [];
 
 // TILE MAKER
 function makeTile(color, x, y, z) {
@@ -154,30 +218,70 @@ function makeTile(color, x, y, z) {
   
   scene.add(cube);
 
-  /*const shape = new CANNON.Box(new CANNON.Vec3(boxWidth/2, boxHeight/2, boxDepth/2));
-  let mass = 0;
-  const body = new CANNON.Body({mass, shape});
-  body.position.set(x, y, z);
-  world.addBody(body);*/
-
   cube.position.set(x, y, z);
   cube.receiveShadow = true;
+  //makeGlass(cube.position, "left");
+  //makeGlass(cube.position, "right");
 
   totalTiles += 1;
   tiles.push(cube);
-  //tileBodies.push(body);
   return {
     threejs: cube,
-    //cannonjs: body,
     number: totalTiles,
   };
 }
 
+// GLASS STAND MAKER
+function makeGlass(x, y, z, direction) {
+
+  const length = 9;
+  let width = length;
+  if (direction == "right" || direction == "left") width = 0.2;
+  const height = 4.5;
+  let depth = length;
+  if (direction == "front" || direction == "back") depth = 0.2;
+
+  const geometry = new THREE.BoxGeometry(width, height, depth);
+
+  const material = new THREE.MeshPhysicalMaterial( {
+    color: 0xffffff,
+    transmission: 1,
+    opacity: 1,
+    metalness: 0,
+    roughness: 0,
+    ior: 1.52,
+    thickness: 0.1,
+    specularIntensity: 1,
+    specularColor: 0xffffff,
+  });
+
+  const glass = new THREE.Mesh(geometry, material);
+  
+  scene.add(glass);
+  y += height / 2;
+  switch (direction) {
+    case 'front': 
+      z += length/2 + 0.2/2;
+      break;
+    case 'right': 
+      x -= length/2 + 0.2/2;
+      break;
+    case 'back': 
+      z -= length/2 + 0.2/2;
+      break;
+    case 'left':
+      x += length/2 + 0.2/2;
+      break;
+  }
+  glass.position.set(x, y, z);
+  glass.receiveShadow = true;
+}
 
 
 currentTile = 0;
 cameraPosition = 0;
 
+// Resize display screen
 function resizeRendererToDisplaySize(renderer) {
   const canvas = renderer.domElement;
   const pixelRatio = window.devicePixelRatio;
@@ -199,8 +303,6 @@ function render(time) {
     camera.aspect = canvas.clientWidth / canvas.clientHeight;
     camera.updateProjectionMatrix();
   }
-  logger.log('test');
-  logger.render(); // Debugger
   renderer.render(scene, camera);
 
   requestAnimationFrame(render);
@@ -209,9 +311,10 @@ function render(time) {
 requestAnimationFrame(render);
 
 // Start game controls
-window.addEventListener("click", () => {
-  if (!gameStarted && player) {
+document.querySelector('#loader').addEventListener("click", () => {
+  if (!gameStarted && gameReady) {
     gameStarted = true;
+    document.querySelector('#loader').classList.add('hidden');
   } 
 });
 
@@ -225,6 +328,11 @@ window.addEventListener('swiped-up', function(e) {
   if (gameStarted && actionAllowed && isJumpAllowed(playerDirection)) {
     jump(0.5, target);
   }
+});
+
+// For disabling scrolling in mobiles
+window.addEventListener('swiped-down', function(e) {
+  return;
 });
 
 // Rotate controls
@@ -259,6 +367,8 @@ function rotate(direction) {
   rotationTracker = player.rotation.y;
   actionAllowed = false;
   if (direction == 'right') {
+    rotationPoses[1].play();
+    rotationPoses[1].setDuration(0.3);
     onRightRotation = true;
     switch (playerDirection) {
       case 'front': 
@@ -274,8 +384,9 @@ function rotate(direction) {
         playerDirection = 'front';
         break;
     }
-    console.log(playerDirection);
   } else {
+    rotationPoses[0].play();
+    rotationPoses[0].setDuration(0.3);
     onLeftRotation = true;
     switch (playerDirection) {
       case 'front': 
@@ -291,7 +402,6 @@ function rotate(direction) {
         playerDirection = 'back';
         break;
     }
-    console.log(playerDirection);
   }
 }
 
@@ -300,8 +410,9 @@ function jump(duration, target) {
   
   actionAllowed = false;
   jumpStarted = false;
-  jumpAnimation.setDuration(7*duration/5);
-  jumpAnimation.play();
+  randomJump = findRandom(jumps.length);
+  jumps[randomJump].setDuration(8*duration/5);
+  jumps[randomJump].play();
   jumpDuration = duration;
 
   let requiredVy = 20 + Math.abs(tiles[target].position.y - tiles[currentTile].position.y);
@@ -330,7 +441,7 @@ function updatePhysics() {
     {
       camera.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta / 4;
     }
-    if (playerDopple.position.y <= tiles[target].position.y + 0.6) {
+    if (playerDopple.position.y <= tiles[target].position.y + 0.5) {
       playerDopple.position.y = tiles[target].position.y + 0.5;
       camera.position.y = cameraOffset.y;
     }
@@ -365,12 +476,15 @@ function updatePhysics() {
 
       jumpStarted = false;
       currentTile = target;
-      jumpAnimation.reset();
-      jumpAnimation.stop();
       playerV.y = 0;
       playerV.z = 0;
       playerV.x = 0;
-      actionAllowed = true;
+      
+      setTimeout(() => {
+        actionAllowed = true;
+        jumps[randomJump].reset();
+        jumps[randomJump].stop();
+      }, 2*jumpDuration/8);
     }
 
     if (player) player.position.copy(playerDopple.position);
@@ -385,6 +499,9 @@ function updatePhysics() {
       player.rotation.y = rotationTracker - Math.PI / 2;
       onRightRotation = false;
       actionAllowed = true;
+
+      rotationPoses[1].reset();
+      rotationPoses[1].stop();
     }
   }
 
@@ -395,9 +512,18 @@ function updatePhysics() {
       player.rotation.y = rotationTracker + Math.PI / 2;
       onLeftRotation = false;
       actionAllowed = true;
+
+      rotationPoses[0].reset();
+      rotationPoses[0].stop();
     }
   }
     
+}
+
+// Get random int: 0-max
+function findRandom(max) {
+  const random = Math.floor(Math.random() * max) //Finds number between 0 - max
+  return random;
 }
 
 // Handle all animation and object movements
@@ -413,5 +539,12 @@ function animate() {
   renderer.render( scene, camera );
 }
 
-animate();
 
+
+
+
+
+
+
+
+animate();
