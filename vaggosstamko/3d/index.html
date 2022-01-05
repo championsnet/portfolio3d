@@ -7,6 +7,7 @@
 </head>
 <body>
   <div id="loader">
+    <span id="load-message">WARNING<br>Still under construction!</span>
     <span id="start">START</span>
     <svg id="loading-svg" width="200" height="200" viewBox="0 0 100 100">
       <polyline class="line-cornered stroke-still" points="0,0 100,0 100,100" stroke-width="10" fill="none"></polyline>
@@ -14,9 +15,10 @@
       <polyline class="line-cornered stroke-animation" points="0,0 100,0 100,100" stroke-width="10" fill="none"></polyline>
       <polyline class="line-cornered stroke-animation" points="0,0 0,100 100,100" stroke-width="10" fill="none"></polyline>
     </svg>
+    <span id="load-message-2">For an optimal experience use a desktop.</span>
   </div>
   <canvas id="c" tabindex="0"></canvas>
-  <script src="https://d3js.org/d3.v5.min.js"></script>
+  <script src="d3.min.js"></script>
   <script type="module" src="swiped-events.js"></script>
   <script type="module" src="main.js"></script>
 </body>

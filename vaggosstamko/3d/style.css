@@ -138,6 +138,19 @@ svg {
   99% { stroke: #aa8844; }
 }
 
+#load-message {
+  position: fixed;
+  width: 100%;
+  text-align: center;
+  color: #aa8844;
+  font-family: Helvetica;
+  font-size: 25pt;
+  display: table-cell;
+  vertical-align: middle;
+  top: 25%;
+  transform: translateY(-75%);
+}
+
 #start {
   position: fixed;
   width: 100%;
@@ -150,6 +163,19 @@ svg {
   opacity: 0;
   top: 50%;
   transform: translateY(-50%);
+}
+
+#load-message-2 {
+  position: fixed;
+  width: 100%;
+  text-align: center;
+  color: #aa8844;
+  font-family: Helvetica;
+  font-size: 15pt;
+  display: table-cell;
+  vertical-align: middle;
+  top: 80%;
+  transform: translateY(-20%);
 }
 
 

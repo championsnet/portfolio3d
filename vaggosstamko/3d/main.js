@@ -2,17 +2,17 @@ import * as THREE from '/vaggosstamko/3d/node_modules/three/build/three.module.j
 import ClearingLogger from '/vaggosstamko/3d/debug.module.js';
 import dumpObject from '/vaggosstamko/3d/scenegraph.module.js';
 import {GLTFLoader} from '/vaggosstamko/3d/node_modules/three/examples/jsm/loaders/GLTFLoader.js';
-import { ImprovedNoise } from '/vaggosstamko/3d/node_modules/three/examples/jsm/math/ImprovedNoise.js';
+import Stats from '/vaggosstamko/3d/node_modules/three/examples/jsm/libs/stats.module.js';
 
-let clock, mixer, scene, camera, renderer, currentTile, cameraPosition, directionalLight, hemiLight;
+let stats, clock, mixer, scene, camera, renderer, currentTile, cameraPosition, directionalLight, hemiLight;
 let totalTiles = 0;
 const jumps = []; // Player jump animations
 const rotationPoses = []; // Player rotation animations
-let playerOnFloor = false;
 let gameReady = false;
 let gameStarted = false;
 let actionAllowed = true;
 let jumpStarted = false;
+let deathJump = false;
 let player = null;
 let playerDopple = null;
 let playerV = new THREE.Vector3(0, 0, 0);
@@ -23,12 +23,15 @@ let onRightRotation = false;
 let onLeftRotation = false;
 let rotationTracker;
 let playerDirection = "front";
+let deathLightStep;
 
 
 const cameraOffset = new THREE.Vector3(0, 6, -7);
-const lightOffset = new THREE.Vector3(-5, 20, -10);
+const lightOffset = new THREE.Vector3(-8, 20, -10);
 
 const loadManager = new THREE.LoadingManager();
+
+let listener, soundtrack, jumpAudio;
 
 // LOADING SCENE
 loadManager.onLoad = function ( url, itemsLoaded, itemsTotal ) {
@@ -45,29 +48,49 @@ loadManager.onLoad = function ( url, itemsLoaded, itemsTotal ) {
 };
 
 // DEBUGGER
-const logger = new ClearingLogger(document.querySelector('#debug pre'));
+//const logger = new ClearingLogger(document.querySelector('#debug pre'));
+
+stats = new Stats();
+stats.showPanel( 0 );
+document.body.appendChild( stats.dom );
 
 // RENDERER
 {
   const canvas = document.querySelector('#c');
+  let pixelRatio = window.devicePixelRatio
+  let AA = true
+  if (pixelRatio > 1) {
+    AA = false
+  }
   renderer = new THREE.WebGLRenderer({
     canvas,
-    alpha: true,
     premultipliedAlpha: false,
-    antialias: true,
+    antialias: AA,
+    powerPreference: "high-performance",
   });
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap; 
 }
 
 // CAMERA
-const fov = 75;
-const aspect = window.innerWidth / window.innerHeight;  // the canvas default
+let fov = 75;
 const near = 1;
-const far = 500;
+let far = 2000;
+const aspect = window.innerWidth / window.innerHeight;  // the canvas default
+
+if (aspect <= 1) {
+  fov = 80;
+  far = 500;
+}
+
 camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
 camera.position.set(cameraOffset.x, cameraOffset.y, cameraOffset.z);
 camera.lookAt(0, 0, 50);
+
+// RAYCASTER
+const raycaster = new THREE.Raycaster();
+const mouse = new THREE.Vector2();
+
 
 // CLOCK
 clock = new THREE.Clock();
@@ -104,16 +127,13 @@ directionalLight.shadow.camera.far = 100; // default
 //const helper = new THREE.CameraHelper( directionalLight.shadow.camera );
 //scene.add( helper );
 
-const ambientLight = new THREE.AmbientLight( 0x404040, 0.7 ); // soft white light
+const ambientLight = new THREE.AmbientLight( 0xffffff, 0.75 ); // soft white light
 scene.add( ambientLight);
-
-hemiLight = new THREE.HemisphereLight( 0xffffff, 0x444444, 0.8 );
-hemiLight.position.set( 0, 20, 0 );
-scene.add( hemiLight);
-
 
 // LOAD ASSETS
 {
+  
+
   const loader = new GLTFLoader(loadManager);
   loader.load("resources/models/alien.gltf", function(gltf) {
     player = gltf.scene;
@@ -151,11 +171,11 @@ scene.add( hemiLight);
     animation.setLoop(THREE.LoopOnce);
     rotationPoses.push(animation);
 
-    player.position.set(0, 0.5, 0);
+    player.position.set(0, 0.5+randomOffsetVal(), 0);
     player.add(camera);
   });
 
-  loader.load("resources/models/scene.gltf", function(gltf) {
+  loader.load("resources/models/scene2.gltf", function(gltf) {
     const terrain = gltf.scene;
     scene.add(terrain);
     terrain.position.set(0, -20, 30);
@@ -165,9 +185,195 @@ scene.add( hemiLight);
   loader.load("resources/models/sign1.gltf", function(gltf) {
     const sign1 = gltf.scene;
     scene.add(sign1);
-    sign1.position.set(4, 0.5, 4);
+    sign1.position.set(4, 0.5+randomOffsetVal(), 4);
     sign1.scale.set(2, 2, 2);
-    sign1.rotation.y = Math.PI/8;
+    sign1.rotation.y = Math.PI/4;
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+  });
+
+  loader.load("resources/models/stand1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(-4, 2+0.5+randomOffsetVal(), 10);
+    sign1.scale.set(2.2, 2.2, 2.2);
+    sign1.rotation.y = -Math.PI/2;
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+  });
+
+  loader.load("resources/models/poster1test.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(3, 2+0.5+randomOffsetVal(), 13);
+    sign1.scale.set(0.5, 0.5, 0.5);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+  });
+
+  loader.load("resources/models/sign2.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(0, 6+0.5+randomOffsetVal(), 33);
+    sign1.scale.set(1, 1, 1);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+  });
+
+  loader.load("resources/models/sign3.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(33, 12+0.5+randomOffsetVal(), 30);
+    sign1.scale.set(3, 3, 3);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = Math.PI/2;
+  });
+
+  loader.load("resources/models/board1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(32.5, 16+0.5+randomOffsetVal(), 53);
+    sign1.scale.set(1.5, 1.5, 1.5);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = 0;
+  });
+
+  loader.load("resources/models/board2.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(27.5, 16+0.5+randomOffsetVal(), 53);
+    sign1.scale.set(1.5, 1.5, 1.5);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = 0;
+  });
+
+  loader.load("resources/models/work1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(0, 22+0.5+randomOffsetVal(), 53.5);
+    sign1.scale.set(3, 3, 3);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    
+  });
+
+  loader.load("resources/models/work2.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(10, 20+0.5+randomOffsetVal(), 53.5);
+    sign1.scale.set(3.5, 3.5, 3.5);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    
+  });
+
+  loader.load("resources/models/work3.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(-10, 24+0.5+randomOffsetVal(), 53.5);
+    sign1.scale.set(3, 3, 3);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+  });
+
+  loader.load("resources/models/sign4.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(-24, 26+0.5+randomOffsetVal(), 54);
+    sign1.scale.set(2.5, 2.5, 2.5);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = -Math.PI/2;
+  });
+
+  loader.load("resources/models/project1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(-16, 28+0.5+randomOffsetVal(), 40);
+    sign1.scale.set(0.7, 0.7, 0.7);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = Math.PI/2;
+  });
+
+  loader.load("resources/models/project2.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(-20, 30+0.5+randomOffsetVal(), 26);
+    sign1.scale.set(0.7, 0.7, 0.7);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = Math.PI;
+  });
+
+  loader.load("resources/models/social1.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(4, 34+0.5+randomOffsetVal(), 33);
+    sign1.scale.set(0.8, 0.8, 0.8);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = Math.PI/2;
+    sign1.name = "linkedin";
+  });
+
+  loader.load("resources/models/social2.gltf", function(gltf) {
+    const sign1 = gltf.scene;
+    scene.add(sign1);
+    sign1.position.set(4, 34+0.5+randomOffsetVal(), 27);
+    sign1.scale.set(0.8, 0.8, 0.8);
+    sign1.traverse( function ( object ) {
+      if ( object.isMesh ) {
+        object.castShadow = true;
+      }
+    });
+    sign1.rotation.y = Math.PI/2;
+    sign1.name = "email";
   });
 }
 
@@ -231,52 +437,6 @@ function makeTile(color, x, y, z) {
   };
 }
 
-// GLASS STAND MAKER
-function makeGlass(x, y, z, direction) {
-
-  const length = 9;
-  let width = length;
-  if (direction == "right" || direction == "left") width = 0.2;
-  const height = 4.5;
-  let depth = length;
-  if (direction == "front" || direction == "back") depth = 0.2;
-
-  const geometry = new THREE.BoxGeometry(width, height, depth);
-
-  const material = new THREE.MeshPhysicalMaterial( {
-    color: 0xffffff,
-    transmission: 1,
-    opacity: 1,
-    metalness: 0,
-    roughness: 0,
-    ior: 1.52,
-    thickness: 0.1,
-    specularIntensity: 1,
-    specularColor: 0xffffff,
-  });
-
-  const glass = new THREE.Mesh(geometry, material);
-  
-  scene.add(glass);
-  y += height / 2;
-  switch (direction) {
-    case 'front': 
-      z += length/2 + 0.2/2;
-      break;
-    case 'right': 
-      x -= length/2 + 0.2/2;
-      break;
-    case 'back': 
-      z -= length/2 + 0.2/2;
-      break;
-    case 'left':
-      x += length/2 + 0.2/2;
-      break;
-  }
-  glass.position.set(x, y, z);
-  glass.receiveShadow = true;
-}
-
 
 currentTile = 0;
 cameraPosition = 0;
@@ -315,13 +475,41 @@ document.querySelector('#loader').addEventListener("click", () => {
   if (!gameStarted && gameReady) {
     gameStarted = true;
     document.querySelector('#loader').classList.add('hidden');
+
+    // Load audio
+    listener = new THREE.AudioListener();
+    camera.add( listener );
+    soundtrack = new THREE.Audio(listener);
+    const audioLoader = new THREE.AudioLoader();
+    audioLoader.load( 'resources/audio/The-Beginning-w-Caturday.mp3', function( buffer ) {
+      soundtrack.setBuffer( buffer );
+      soundtrack.setLoop(true);
+      soundtrack.setVolume(0.05);
+      soundtrack.play();
+    });
+
+    jumpAudio = new THREE.Audio(listener);
+    audioLoader.load( 'resources/audio/jump1.wav', function( buffer ) {
+      jumpAudio.setBuffer( buffer );
+      jumpAudio.setVolume(0.5);
+      jumpAudio.detune = 1200;
+    });
+    
   } 
 });
+
+// START & STOP SOUNDTRACK BASED ON TAB FOCUS
+window.onfocus = function() {
+  if (gameStarted) soundtrack.play();
+};
+window.onblur = function() {
+  if (gameStarted) soundtrack.pause();
+};
 
 // Jump controls
 window.addEventListener("keydown", function(event) {
   if (gameStarted && actionAllowed && isJumpAllowed(playerDirection)) {
-    if (event.key == " ") jump(0.5, target);
+    if (event.key == " " || event.key == "ArrowUp") jump(0.5, target);
   }
 });
 window.addEventListener('swiped-up', function(e) {
@@ -350,6 +538,40 @@ window.addEventListener("swiped-right", function(event) {
 window.addEventListener("swiped-left", function(event) {
   if (gameStarted && actionAllowed) {
     rotate('left');
+  }
+});
+
+// Click controls
+window.addEventListener("click", function(event) {
+  if (gameStarted && actionAllowed) {
+    mouse.x = ( event.clientX / window.innerWidth ) * 2 - 1;
+	  mouse.y = - ( event.clientY / window.innerHeight ) * 2 + 1;
+
+    raycaster.setFromCamera( mouse, camera );
+    const intersects = raycaster.intersectObjects( scene.children );
+    for ( let i = 0; i < intersects.length; i ++ ) {
+
+      if (intersects[ i ].object.name.includes("email")) {
+        window.location.href = "mailto:vaggelisstam@gmail.com";
+        break;
+      }
+      if (intersects[ i ].object.name.includes("linkedin")) {
+        const url = "https://www.linkedin.com/in/evan-gelos-chane";
+        window.open(url, '_blank').focus();
+        break;
+      }
+      if (intersects[ i ].object.name.includes("nfc")) {
+        const url = "resources/elevit21.pdf";
+        window.open(url, '_blank').focus();
+        break;
+      }
+      if (intersects[ i ].object.name.includes("cpageing")) {
+        const url = "resources/petra21.pdf";
+        window.open(url, '_blank').focus();
+        break;
+      }
+  
+    }
   }
 });
 
@@ -414,10 +636,25 @@ function jump(duration, target) {
   jumps[randomJump].setDuration(8*duration/5);
   jumps[randomJump].play();
   jumpDuration = duration;
+  jumpAudio.play(duration/5);
 
-  let requiredVy = 20 + Math.abs(tiles[target].position.y - tiles[currentTile].position.y);
-  const requiredVz = (tiles[target].position.z - tiles[currentTile].position.z) / 10 * 10;
-  const requiredVx = (tiles[target].position.x - tiles[currentTile].position.x) / 10 * 10;
+  let requiredVx, requiredVy, requiredVz;
+  // Jump to tile
+  if (target != 9999) {
+    deathJump = false;
+    requiredVy = 20 + Math.abs(tiles[target].position.y - tiles[currentTile].position.y);
+    requiredVz = (tiles[target].position.z - tiles[currentTile].position.z) / 10 * 10;
+    requiredVx = (tiles[target].position.x - tiles[currentTile].position.x) / 10 * 10;
+  } 
+  // Jump to death
+  else {
+    deathJump = true;
+    deathLightStep = 0.02;
+    const death = deathTarget(playerDirection);
+    requiredVy = 20 + Math.abs(death.y - tiles[currentTile].position.y);
+    requiredVz = (death.z - tiles[currentTile].position.z) / 10 * 10;
+    requiredVx = (death.x - tiles[currentTile].position.x) / 10 * 10;
+  }
 
   setTimeout(() => {
     playerV.y = requiredVy * 5/duration/5;
@@ -428,10 +665,34 @@ function jump(duration, target) {
   }, duration/5 * 1000);
 }
 
+// Find death target
+function deathTarget(direction) {
+  const death = new THREE.Vector3(-10, tiles[currentTile].position.y, 0);
+  switch (direction) {
+    case 'front': 
+      death.x = tiles[currentTile].position.x;
+      death.z = tiles[currentTile].position.z + 10;
+      break;
+    case 'right': 
+      death.x = tiles[currentTile].position.x - 10;
+      death.z = tiles[currentTile].position.z;
+      break;
+    case 'back': 
+      death.x = tiles[currentTile].position.x;
+      death.z = tiles[currentTile].position.z - 10;
+      break;
+    case 'left':
+      death.x = tiles[currentTile].position.x + 10;
+      death.z = tiles[currentTile].position.z;
+      break;
+  }
+  return death;
+}
+
 // Handle all movements
 function updatePhysics() {
   // If on jump
-  if (jumpStarted) {
+  if (jumpStarted && !deathJump) {
     
     let timeCoefficient = (clock.elapsedTime - jumpStartTime)*4/jumpDuration/5;
     if (timeCoefficient >= 1) timeCoefficient = 1;
@@ -490,7 +751,58 @@ function updatePhysics() {
     if (player) player.position.copy(playerDopple.position);
     directionalLight.lookAt(player.position.x, player.position.y, player.position.z);
     directionalLight.position.set(player.position.x + lightOffset.x, player.position.y + lightOffset.y, player.position.z + lightOffset.z);
+    renderer.render( scene, camera );
   } 
+
+  // If on death jump
+  if (jumpStarted && deathJump) {
+    
+    let timeCoefficient = (clock.elapsedTime - jumpStartTime)*4/jumpDuration/5;
+    if (timeCoefficient >= 1) timeCoefficient = 1;
+    playerDopple.position.y += playerV.y * Math.cos(Math.PI*timeCoefficient) * delta;
+
+    playerDopple.position.z += playerV.z * delta;
+    
+
+    playerDopple.position.x += playerV.x * delta;
+
+    if (playerDopple.position.y <= tiles[currentTile].position.y - 20) {
+      if (ambientLight.intensity - deathLightStep < 0) ambientLight.intensity = 0;
+      else ambientLight.intensity -= deathLightStep;
+      if (directionalLight.intensity - deathLightStep < 0) directionalLight.intensity = 0;
+      else directionalLight.intensity -= deathLightStep;
+    }
+    
+
+    if (ambientLight.intensity == 0 && directionalLight.intensity == 0) {
+      deathLightStep = 0;
+
+      
+      
+      setTimeout(() => {
+        camera.position.y = cameraOffset.y;
+        jumpStarted = false;
+        playerV.y = 0;
+        playerV.z = 0;
+        playerV.x = 0;
+        playerDopple.position.x = tiles[currentTile].position.x;
+        playerDopple.position.y = tiles[currentTile].position.y + 0.5;
+        playerDopple.position.z = tiles[currentTile].position.z;
+        directionalLight.intensity = intensity;
+        ambientLight.intensity = 0.75;
+
+        actionAllowed = true;
+        jumps[randomJump].reset();
+        jumps[randomJump].stop();
+
+        if (player) player.position.copy(playerDopple.position);
+        renderer.render( scene, camera );
+      }, 50);
+    }
+
+    if (player) player.position.copy(playerDopple.position);
+    renderer.render( scene, camera );
+  }
 
   // If on right rotation
   if (onRightRotation) {
@@ -503,6 +815,7 @@ function updatePhysics() {
       rotationPoses[1].reset();
       rotationPoses[1].stop();
     }
+    renderer.render( scene, camera );
   }
 
   // If on left rotation
@@ -516,8 +829,9 @@ function updatePhysics() {
       rotationPoses[0].reset();
       rotationPoses[0].stop();
     }
+    renderer.render( scene, camera );
   }
-    
+  
 }
 
 // Get random int: 0-max
@@ -530,17 +844,20 @@ function findRandom(max) {
 function animate() {
   delta = clock.getDelta();
   updatePhysics();
-  logger.log(currentTile);
 
   requestAnimationFrame( animate );
   
   if ( mixer ) mixer.update( delta );
 
-  renderer.render( scene, camera );
+  //console.log(renderer.info.render);
+
+  stats.update();
 }
 
 
-
+function randomOffsetVal() {
+  return Math.floor(Math.random() * 10000) * 0.000001;
+}
 
 
 
