@@ -18,11 +18,15 @@ export default class Lights {
         this.near = 0.5;
         this.far = 100;
 
+        this.helperColor = 0xffcc00;
+        this.helperIntensity = 1;
+
         this.ambientColor = 0xffffff;
         this.ambientIntensity = 0.75;
         this.ambientColor = this.time.getHourColor();
 
         this.setupDirectional();
+        this.setupHelper();
         this.setupAmbient();
     }
 
@@ -42,6 +46,10 @@ export default class Lights {
         this.directional.shadow.camera.far = this.far; // default
 
         this.scene.add(this.directional);
+    }
+
+    setupHelper() {
+        this.helper = new THREE.DirectionalLight(this.helperColor, this.helperIntensity);
     }
 
     setupAmbient() {

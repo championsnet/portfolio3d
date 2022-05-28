@@ -33,8 +33,22 @@ export default class World {
             const vector = new THREE.Vector3(tileMap.x, tileMap.y, tileMap.z);
             const tile = new Tile(vector, i, this.tileGeometry, this.tileMaterial);
             if ("panel" in tileMap) {
-                const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
-                tile.setPanel(panel);
+                // This whole if is for responsive panels
+                if ('use' in tileMap.panel) {
+                    if (this.manager.config.touch && tileMap.panel.use === 'mobile') {
+                        const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
+                        tile.setPanel(panel);
+                    }
+                    else if (!this.manager.config.touch && tileMap.panel.use === 'pc') {
+                        const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
+                        tile.setPanel(panel);
+                    }
+                }
+                // If no responsiveness setting then just go on
+                else {
+                    const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
+                    tile.setPanel(panel);
+                }
             }
             this.tiles.push(tile);
             i++;

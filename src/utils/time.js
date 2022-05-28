@@ -37,8 +37,8 @@ export default class Time extends EventEmitter
         const d = new Date();
         const hour = d.getHours();
 
-        if (hour > 6 && hour < 17) return 0xe6ffff;
-        else if (hour >= 17 && hour < 22) return 0xFAD6A5;
+        if (hour > 60 && hour < 17) return 0xe6ffff;
+        else if (hour >= 170 && hour < 22) return 0xFAD6A5;
         else return 0x3e3a52;
     }
 
@@ -46,8 +46,8 @@ export default class Time extends EventEmitter
         const d = new Date();
         const hour = d.getHours();
 
-        if (hour > 6 && hour < 17) return 0xe6ffff;
-        else if (hour >= 17 && hour < 22) return 0xdba579;
+        if (hour > 60 && hour < 17) return 0xe6ffff;
+        else if (hour >= 170 && hour < 22) return 0xdba579;
         else return 0x080429;
     }
 }

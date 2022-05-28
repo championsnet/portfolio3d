@@ -13,6 +13,7 @@ import Audio from './audio.js';
 import LoaderUI from './loader-ui.js';
 import Animator from './animator.js';
 import Controller from './controller.js';
+import Raycaster from './raycaster.js';
 
 let instance = null;
 
@@ -74,7 +75,7 @@ export default class Manager
         // this.animations = new Animations();
         // this.postProcessing = new PostProcessing();
         this.controller = new Controller();
-        // this.rayCaster = new RayCaster();
+        this.raycaster = new Raycaster();
 
         
 
