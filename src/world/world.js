@@ -16,8 +16,10 @@ export default class World {
         this.tileHeight = 1;
         this.tileDepth = 9;
         this.tileColor = 0xa1811a;
+        this.elevatorColor = 0xFF5733;
         this.tileGeometry = new THREE.BoxGeometry(this.tileWidth, this.tileHeight, this.tileDepth);
         this.tileMaterial = new THREE.MeshPhongMaterial({color: this.tileColor});
+        this.elevatorMaterial = new THREE.MeshPhongMaterial({color: this.elevatorColor});
         this.tiles = [];
         
         // Wait for resources
@@ -32,14 +34,20 @@ export default class World {
         for (const tileMap of this.resources.items.tiles) {
             const vector = new THREE.Vector3(tileMap.x, tileMap.y, tileMap.z);
             const tile = new Tile(vector, i, this.tileGeometry, this.tileMaterial);
+            if ("elevator" in tileMap) {
+                tile.setElevator(tileMap, this.elevatorMaterial);
+            }
             if ("panel" in tileMap) {
-                // This whole if is for responsive panels
-                if ('use' in tileMap.panel) {
-                    if (this.manager.config.touch && tileMap.panel.use === 'mobile') {
+                // This whole if is for responsive panels, 'd' for desktop and 'm' for mobile
+                if ('responsive' in tileMap.panel) {
+                    
+                    if (this.manager.config.vertical) {
+                        tileMap.panel.name += 'm';
                         const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
                         tile.setPanel(panel);
                     }
-                    else if (!this.manager.config.touch && tileMap.panel.use === 'pc') {
+                    else {
+                        tileMap.panel.name += 'd';
                         const panel = new Panel(tileMap.panel.position, tileMap.panel.name);
                         tile.setPanel(panel);
                     }

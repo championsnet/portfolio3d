@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-require('swiped-events');
 import Manager from './manager.js';
+import './utils/swiped-events';
 
 export default class Controller {
 
@@ -34,7 +34,7 @@ export default class Controller {
         });
 
         this.animator.on('actions-ready', () => {
-            this.logic.actionsAllowed = true;
+            if (!this.logic.onElevator) this.logic.actionsAllowed = true;
         });
 
         this.animator.on('jump-start', () => {
@@ -43,6 +43,9 @@ export default class Controller {
 
         this.animator.on('jump-end', () => {
             this.logic.onJump = false;
+            if (this.tiles[this.player.location].elevator !== null) {
+                this.prepareElevator();
+            }
         });
 
         this.animator.on('death-start', () => {
@@ -57,6 +60,10 @@ export default class Controller {
             this.logic.onLeftRotation = false;
             this.logic.onRightRotation = false;
         });
+
+        this.animator.on('elevate-end', () => {
+            this.logic.onElevator = false;
+        });
         
     }
 
@@ -66,6 +73,7 @@ export default class Controller {
         if (this.logic.onDeathJump) this.animator.updateDeathJump();
         if (this.logic.onRightRotation) this.animator.updateRightRotation();
         if (this.logic.onLeftRotation) this.animator.updateLeftRotation();
+        if (this.logic.onElevator) this.animator.updateElevate();
     }
 
     setLogic() {
@@ -75,6 +83,7 @@ export default class Controller {
         this.logic.onDeathJump = false;
         this.logic.onRightRotation = false;
         this.logic.onLeftRotation = false;
+        this.logic.onElevator = false;
     }
 
     // Set relationship of camera, player and directional light
@@ -84,34 +93,28 @@ export default class Controller {
     }
 
     setControls() {
-        // If on mouse
-        if (!this.manager.config.touch) {
-            window.addEventListener("keydown", (event) => {
-                if (this.logic.actionsAllowed) {
-                    if (event.key == " " || event.key == "ArrowUp") this.prepareJump();
-                    if (event.key == "ArrowRight") this.prepareRotation('right');
-                    if (event.key == "ArrowLeft") this.prepareRotation('left');
-                }
+        window.addEventListener("keydown", (event) => {
+            if (this.logic.actionsAllowed) {
+                if (event.key == " " || event.key == "ArrowUp") this.prepareJump();
+                if (event.key == "ArrowRight") this.prepareRotation('right');
+                if (event.key == "ArrowLeft") this.prepareRotation('left');
+            }
+        });
+        document.addEventListener('swiped-up', (e) => {
+            if (this.logic.actionsAllowed) {
+                this.prepareJump();
+            }
+        });
+        document.addEventListener('swiped-right', (e) => {
+            if (this.logic.actionsAllowed) {
+                this.prepareRotation('right');
+            }
+        });
+        document.addEventListener('swiped-left', (e) => {
+            if (this.logic.actionsAllowed) {
+                this.prepareRotation('left');
+            }
             });
-        }
-        else {
-            window.addEventListener('swiped-up', function(e) {
-                if (this.logic.actionsAllowed) {
-                    this.prepareJump();
-                }
-            });
-            window.addEventListener('swiped-right', function(e) {
-                if (this.logic.actionsAllowed) {
-                    this.prepareRotation('right');
-                }
-            });
-            window.addEventListener('swiped-left', function(e) {
-                if (this.logic.actionsAllowed) {
-                    this.prepareRotation('left');
-                }
-            });
-        }
-
     }
 
     prepareJump() {
@@ -127,11 +130,33 @@ export default class Controller {
 
     // Return true if there is a deathless place to jump
     isJumpAllowed() {
-        return (this.player.direction in this.tilesResource[this.player.location]);
+        if (this.player.direction in this.tilesResource[this.player.location]) {
+            const target = this.tilesResource[this.player.location][this.player.direction]
+            if ("elevator" in this.tilesResource[target]) {
+                if (this.tiles[target].elevator.currently === "start") {
+                    if (this.tiles[target].elevator.start.right == this.player.location) {
+                        return true;
+                    }
+                }
+                else {
+                    if (this.tiles[target].elevator.end.right == this.player.location) {
+                        return true;
+                    }
+                }
+            }
+            else return true;
+        }
+        return false;
     }
 
     getTarget() {
         // Get player target based on location and direction
+        if ("elevator" in this.tilesResource[this.player.location]) {
+            if (this.tiles[this.player.location].elevator.currently === "start") {
+                return (this.tilesResource[this.player.location][this.player.direction]);
+            }
+            else return (this.tilesResource[this.player.location].elevator[this.player.direction]);
+        }
         return (this.tilesResource[this.player.location][this.player.direction]);
     }
 
@@ -140,6 +165,12 @@ export default class Controller {
         if (direction === 'right') this.logic.onRightRotation = true;
         else this.logic.onLeftRotation = true;
         this.animator.rotatePlayer(direction);
+    }
+
+    prepareElevator() {
+        this.logic.actionsAllowed = false;
+        this.animator.elevate(this.target);
+        this.logic.onElevator = true;
     }
 
 }

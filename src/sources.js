@@ -11,15 +11,13 @@ export default [
         path: 'models/alien.gltf'
     },
     {
-        name: 'panel1',
+        name: 'panel1d',
         type: 'gltfModel',
-        use: 'pc',
         path: 'models/panel-1-pc.gltf'
     },
     {
-        name: 'panel1',
+        name: 'panel1m',
         type: 'gltfModel',
-        use: 'mobile',
         path: 'models/panel-1-mobile.gltf'
     },
     {
@@ -73,5 +71,45 @@ export default [
         name: 'soundtrack',
         type: 'audio',
         path: 'audio/The-Beginning-w-Caturday.mp3'
+    },
+    {
+        name: '1C',
+        type: 'audio-note',
+        path: 'audio/xylo/1.wav'
+    },
+    {
+        name: '1D',
+        type: 'audio-note',
+        path: 'audio/xylo/2.wav'
+    },
+    {
+        name: '1E',
+        type: 'audio-note',
+        path: 'audio/xylo/3.wav'
+    },
+    {
+        name: '1F',
+        type: 'audio-note',
+        path: 'audio/xylo/4.wav'
+    },
+    {
+        name: '1G',
+        type: 'audio-note',
+        path: 'audio/xylo/5.wav'
+    },
+    {
+        name: '2A',
+        type: 'audio-note',
+        path: 'audio/xylo/6.wav'
+    },
+    {
+        name: '2B',
+        type: 'audio-note',
+        path: 'audio/xylo/7.wav'
+    },
+    {
+        name: '2C',
+        type: 'audio-note',
+        path: 'audio/xylo/8.wav'
     }
 ]

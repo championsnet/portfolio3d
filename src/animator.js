@@ -25,11 +25,124 @@ export default class Animator extends EventEmitter {
             this.jumpStartTime = 0;
             this.rotationDuration = 0.3;
             this.audio = this.manager.audio;
+            this.detune = 0;
         });
 
         
     }
 
+    elevate(target) {
+        this.elevator = this.tiles[target].elevator;
+        this.elevatorIntance = this.tiles[target].instance;
+        let fromTile = this.elevator.start;
+        let toTile = this.elevator.end;
+        if (this.elevator.currently == "end") {
+            fromTile = this.elevator.end;
+            toTile = this.elevator.start;
+        }
+        this.requiredVy = (toTile.y - fromTile.y) / 15 * 10;
+        this.requiredVz = (toTile.z - fromTile.z) / 15 * 10;
+        this.requiredVx = (toTile.x - fromTile.x) / 15 * 10;
+        this.requiredVr = this.elevator.rotation / 360 * 2 * Math.PI / 15 * 10;
+
+        this.rotationTracker = this.elevatorIntance.rotation.y;
+        this.player.direction = "right";
+
+        this.trackFloor = fromTile.y;
+    }
+
+    updateElevate() {
+
+        const delta = this.time.delta * 0.001;
+        let destination = this.elevator.end;
+        if (this.elevator.currently === 'end') destination = this.elevator.start;
+
+        // Check X physics
+        this.elevatorIntance.position.x += this.requiredVx * delta;
+        this.dopple.position.x += this.requiredVx * delta;
+        if (this.requiredVx >= 0) {
+            if (this.elevatorIntance.position.x >= destination.x) {
+                this.elevatorIntance.position.x = destination.x;
+                this.dopple.position.x = destination.x;
+            }
+        } else {
+            if (this.elevatorIntance.position.x <= destination.x) {
+                this.elevatorIntance.position.x = destination.x;
+                this.dopple.position.x = destination.x;
+            }
+        }
+
+        // Check Y physics
+        this.elevatorIntance.position.y += this.requiredVy * delta;
+        this.dopple.position.y += this.requiredVy * delta;
+        if (this.requiredVy >= 0) {
+            if (this.elevatorIntance.position.y >= destination.y) {
+                this.elevatorIntance.position.y = destination.y;
+                this.dopple.position.y = destination.y + 0.5;
+            }
+        } else {
+            if (this.elevatorIntance.position.y <= destination.y) {
+                this.elevatorIntance.position.y = destination.y;
+                this.dopple.position.y = destination.y + 0.5;
+            }
+        }
+
+        if (Math.abs(this.trackFloor-this.elevatorIntance.position.y) >= Math.abs(this.elevator.start.y-this.elevator.end.y)/9) {
+            this.audio.playNote(this.detune);
+            if (this.trackFloor < this.elevatorIntance.position.y) this.detune += 1;
+            else this.detune -= 1;
+            if (this.detune < 0) this.detune = 0;
+            if (this.detune > 7) this.detune = 7;
+            this.trackFloor = this.elevatorIntance.position.y;
+        }
+
+        // Check Z physics
+        this.elevatorIntance.position.z += this.requiredVz * delta;
+        this.dopple.position.z += this.requiredVz * delta;
+        if (this.requiredVz >= 0) {
+            if (this.elevatorIntance.position.z >= destination.z) {
+                this.elevatorIntance.position.z = destination.z;
+                this.dopple.position.z = destination.z;
+            }
+        } else {
+            if (this.elevatorIntance.position.z <= destination.z) {
+                this.elevatorIntance.position.z = destination.z;
+                this.dopple.position.z = destination.z
+            }
+        }
+
+        this.model.rotation.y -= this.requiredVr * delta;
+        this.elevatorIntance.rotation.y -= this.requiredVr * delta;
+        if (this.elevatorIntance.rotation.y - this.rotationTracker <= - Math.PI * this.elevator.rotation/360 * 2) {
+            this.elevatorIntance.rotation.y = this.rotationTracker - Math.PI * this.elevator.rotation/360 * 2;
+            this.model.rotation.y = - Math.PI/2;
+            this.requiredVr = 0;
+        }
+
+        if (this.elevatorIntance.position.y == destination.y
+            && this.elevatorIntance.position.z == destination.z
+            && this.elevatorIntance.position.x == destination.x
+            && this.elevatorIntance.rotation.y == this.rotationTracker - Math.PI * this.elevator.rotation/360 * 2) {
+
+            
+            this.trigger('elevate-end');
+            if (this.elevator.currently === 'end') this.tiles[this.target].elevator.currently = 'start';
+            else this.tiles[this.target].elevator.currently = 'end';
+        
+            setTimeout(() => {
+                this.trigger('actions-ready');
+            }, 50);
+        }
+
+        this.model.position.copy(this.dopple.position);
+        this.lights.directional.lookAt(this.model.position.x, this.model.position.y, this.model.position.z);
+        this.lights.directional.position.set(
+            this.model.position.x + this.lights.lightOffset.x,
+            this.model.position.y + this.lights.lightOffset.y, 
+            this.model.position.z + this.lights.lightOffset.z
+        ); 
+
+    }
 
     jump(target) {
         this.randomJump = this.findRandom(this.jumps.length);
@@ -101,11 +214,12 @@ export default class Animator extends EventEmitter {
             && this.dopple.position.z == this.tiles[this.target].instance.position.z
             && this.dopple.position.x == this.tiles[this.target].instance.position.x) {
 
-            this.trigger('jump-end');
+            
             this.player.location = this.target;
             this.playerVelocity.y = 0;
             this.playerVelocity.z = 0;
             this.playerVelocity.x = 0;
+            this.trigger('jump-end');
         
             setTimeout(() => {
                 this.jumps[this.randomJump].reset();

@@ -6,7 +6,8 @@
    "front": 1,
    "panel": {
      "position" : "front",
-     "name" : "panel1"
+     "name" : "panel1",
+     "responsive" : true
     }
  },
  {

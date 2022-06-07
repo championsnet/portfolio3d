@@ -4,9 +4,11 @@
    "y": 0,
    "z": 0,
    "front": 1,
+   "left": 20,
    "panel": {
      "position" : "front",
-     "name" : "panel1"
+     "name" : "panel1",
+     "responsive" : true
     }
  },
  {
@@ -90,7 +92,8 @@
    "y": 20,
    "z": 50,
    "right": 11,
-   "left": 9
+   "left": 9,
+   "back": 4
  },
  {
    "x": 0,
@@ -98,6 +101,7 @@
    "z": 50,
    "right": 12,
    "left": 10,
+   "back": 3,
    "panel": {
      "position" : "right",
      "name" : "panel5"
@@ -153,7 +157,8 @@
    "z": 30,
    "front": 11,
    "right": 16,
-   "back": 18
+   "back": 18,
+   "left": 5
  },
  {
    "x": 0,
@@ -171,6 +176,20 @@
    "y": 38,
    "z": 10,
    "front": 18,
-   "back": 0
+   "back": 0,
+   "left": 20
+ },
+ {
+  "x": 10,
+  "y": 0,
+  "z": 0,
+  "right": 0,
+  "elevator": {
+    "x": 10,
+    "y": 38,
+    "z": 10,
+    "right": 19,
+    "rotate": 180
+  } 
  }
 ]

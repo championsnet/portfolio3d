@@ -17,6 +17,16 @@ export default class Audio {
         this.jump.setVolume(0.5);
         this.jump.detune = 1200;
 
+        // Ensure xylo notes are in proper order from heavy to light
+        this.resources.items.xylo.sort(function(a, b) {
+            var textA = a.name;
+            var textB = b.name;
+            return (textA < textB) ? -1 : (textA > textB) ? 1 : 0;
+        });
+        this.xylo = new THREE.Audio(this.listener);
+        this.xylo.setVolume(0.05);
+        this.xylo.detune = -100;
+
         this.soundtrack = new THREE.Audio(this.listener);
         this.soundtrack.setBuffer(this.resources.items.soundtrack);
         this.soundtrack.setLoop(true);
@@ -30,5 +40,14 @@ export default class Audio {
             this.soundtrack.pause();
         };
 
+    }
+
+    playNote(note) {
+        if (note < 0) {
+            note += 8;
+        }
+        this.xylo.setBuffer(this.resources.items.xylo[note]);
+        if (this.xylo.isPlaying) this.xylo.stop();
+        this.xylo.play();
     }
 }

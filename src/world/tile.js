@@ -14,6 +14,7 @@ export default class Tile {
         this.vector = _vector;
         this.id = _id;
         this.panel = null;
+        this.elevator = null;
 
         this.makeTile();
 
@@ -33,5 +34,27 @@ export default class Tile {
     setPanel(panel) {
         this.panel = panel;
         this.instance.add(panel.model);
+    }
+
+    setElevator(data, material) {
+        this.elevator = {};
+        this.elevator.start = {};
+        this.elevator.start.x = data.x;
+        this.elevator.start.y = data.y;
+        this.elevator.start.z = data.z;
+        // TODO for every possible direction
+        this.elevator.start.right = data.right;
+
+        this.elevator.end = {};
+        this.elevator.end.x = data.elevator.x;
+        this.elevator.end.y = data.elevator.y;
+        this.elevator.end.z = data.elevator.z;
+        // TODO for every possible direction
+        this.elevator.end.right = data.elevator.right;
+
+        this.elevator.rotation = data.elevator.rotate;
+
+        this.elevator.currently = 'start';
+        this.instance.material = material;
     }
 }

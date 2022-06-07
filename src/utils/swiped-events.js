@@ -101,7 +101,6 @@
      * @returns {void}
      */
     function handleTouchStart(e) {
-
         // if the element has data-swipe-ignore="true" we stop listening for swipe events
         if (e.target.getAttribute('data-swipe-ignore') === 'true') return;
 
@@ -139,7 +138,7 @@
      */
     function getNearestAttribute(el, attributeName, defaultValue) {
 
-        // walk up the dom tree looking for attributeName
+        // walk up the dom tree looking for data-action and data-trigger
         while (el && el !== document.documentElement) {
 
             var attributeValue = el.getAttribute(attributeName);

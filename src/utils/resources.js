@@ -26,6 +26,7 @@ export default class Resources extends EventEmitter {
         this.loaders.gltfLoader = new GLTFLoader();
         this.loaders.d3 = d3;
         this.loaders.audioLoader = new THREE.AudioLoader();
+        this.items.xylo = [];
     }
 
     startLoading() {
@@ -35,7 +36,8 @@ export default class Resources extends EventEmitter {
                 this.loaders.gltfLoader.load(
                     source.path,
                     (file) => {
-                        this.sourceLoaded(source, file);
+                        this.items[source.name] = file;
+                        this.sourceLoaded();
                     }
                 );
             }
@@ -43,7 +45,8 @@ export default class Resources extends EventEmitter {
             // Load JSON types
             if (source.type === 'json') {
                 this.loaders.d3.json(source.path).then((data) => {
-                    this.sourceLoaded(source, data);    
+                    this.items[source.name] = data;
+                    this.sourceLoaded();    
                 });
             }
 
@@ -52,17 +55,28 @@ export default class Resources extends EventEmitter {
                 this.loaders.audioLoader.load(
                     source.path,
                     (file) => {
-                        this.sourceLoaded(source, file);
+                        this.items[source.name] = file;
+                        this.sourceLoaded();
+                    }
+                );
+            }
+
+            // Load Piano folder
+            if (source.type === 'audio-note') {
+                this.loaders.audioLoader.load(
+                    source.path,
+                    (file) => {
+                        file.name = source.name;
+                        this.items.xylo.push(file);
+                        this.sourceLoaded();
                     }
                 );
             }
         }
     }
 
-    sourceLoaded(source, file) {
+    sourceLoaded() {
         this.trigger('itemLoaded');
-
-        this.items[source.name] = file;
         this.loaded++;
 
         if (this.loaded === this.toLoad) {

@@ -40,7 +40,7 @@ export default class Manager
         this.config.touch = false;
 
         // If touch is made once then use touch config globally
-        window.addEventListener('touchstart', () => {
+        window.addEventListener('ontouchstart', () => {
             this.config.touch = true;
         }, {once: true});
 

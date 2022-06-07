@@ -46,17 +46,24 @@ canvas:focus {
   top: 0;
   left: 0;
   z-index: 1;
-  background: #282828;
+  background: radial-gradient(97.97% 77.41% at 2.03% 0%, #000000 0%, #262626 100%);
   position: fixed;
   display: block;
+  font-family: 'Montserrat';
+  color: white;
+  text-shadow: -2px -2px 4px #F04F38;
 }
 
-svg {
+#loading-svg {
   position: fixed;
   top: 50%;
   left: 50%;
   -webkit-transform: translate(-50%, -50%) rotate(45deg) scale(1);
           transform: translate(-50%, -50%) rotate(45deg) scale(1);
+}
+
+.line-cornered {
+  filter: drop-shadow(-2px -2px 2px #EF4838);
 }
 
 .stroke-still {
@@ -124,7 +131,7 @@ svg {
   50% { stroke: #32326e; }
   74% { stroke: #32326e; }
   75% { stroke: #78325a; }
-  99% { stroke: #aa8844; }
+  99% { stroke: #F04F38; }
 }
 
 @keyframes stroke-color {
@@ -135,47 +142,56 @@ svg {
   50% { stroke: #32326e; }
   74% { stroke: #32326e; }
   75% { stroke: #78325a; }
-  99% { stroke: #aa8844; }
+  99% { stroke: #F04F38; }
 }
 
-.load-message {
+.load-message-div {
   position: fixed;
   width: 100%;
   text-align: center;
-  color: #aa8844;
-  font-family: Helvetica;
-  font-size: 25pt;
+  font-size: 28pt;
   display: table-cell;
   vertical-align: middle;
   top: 25%;
   transform: translateY(-75%);
 }
 
-#start {
+.start {
   position: fixed;
   width: 100%;
   text-align: center;
-  color: #aa8844;
-  font-family: Helvetica;
-  font-size: 25pt;
+  font-size: 30pt;
   display: table-cell;
   vertical-align: middle;
   opacity: 0;
   top: 50%;
   transform: translateY(-50%);
+  background: transparent;
+  border: none;
+  font-family: 'Montserrat';
+  color: white;
+  text-shadow: -2px -2px 4px #F04F38;
+  transition: opacity, color, font-size 1s;
+  -webkit-transition: opacity, color, font-size 1s;
 }
 
-#load-message-2 {
+.svg {
+  position: fixed;
+}
+
+.load-message-2 {
   position: fixed;
   width: 100%;
   text-align: center;
-  color: #aa8844;
-  font-family: Helvetica;
-  font-size: 15pt;
+  font-size: 22pt;
   display: table-cell;
   vertical-align: middle;
   top: 80%;
   transform: translateY(-20%);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  #start:hover { color: #F04F38; font-size: 34pt; }
 }
 
 

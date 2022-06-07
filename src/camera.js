@@ -17,7 +17,7 @@ export default class Camera {
         this.near = 1;
         this.far = 2000;
         if (this.config.vertical) {
-            this.fov = 80;
+            this.fov = 85;
             this.far = 500;
         }
 

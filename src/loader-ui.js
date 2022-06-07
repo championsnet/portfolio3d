@@ -12,15 +12,25 @@ export default class LoaderUI extends EventEmitter {
         this.resources = this.manager.resources;
         this.sizes = this.manager.sizes;
         this.loader = document.querySelector('#loader');
-        this.progress = document.querySelector('#progress');
-        this.startButton = document.querySelector('#start');
+        this.progress = document.querySelector('.load-message');
+        this.startButton = document.querySelector('.start');
+        this.previousProgress = 0;
+        this.progressRatio = 0;
 
         // Progress
         this.resources.on('itemLoaded', () =>
         {
+            if (this.timer) {
+                clearTimeout(this.timer);
+                this.timer = 0;
+            }
+            this.previousProgress = this.progressRatio;
             this.progressRatio = (this.resources.loaded + 1)/ this.resources.toLoad;
-            
-            this.progress.innerHTML = Math.trunc(this.progressRatio * 100);
+            if (this.progressRatio == 0) this.progress.innerHTML = "Connecting...";
+            else if (this.progressRatio == 1) this.progress.innerHTML = "Loaded 100%";
+            else {
+                this.transitionRatio(this.previousProgress, this.progressRatio);
+            }
         });
 
         //Loaded
@@ -39,13 +49,23 @@ export default class LoaderUI extends EventEmitter {
         });
     }
 
+    transitionRatio(from, to) {
+        if (from != to && from < 0.99) {
+            from += 0.01;
+            this.progress.innerHTML = "Loading... " + Math.trunc(from * 100) + "%";
+            this.timer = setTimeout(() => {
+                this.transitionRatio(from, to);
+            }, 200/(to-from)/100);
+        }
+    }
+
     readyScreen() {
         this.startButton.style.opacity = 1;
         const toChange = document.getElementsByTagName('polyline');
   
         for (let i=0; i<toChange.length; i++) {
             toChange[i].classList.remove("stroke-animation");
-            toChange[i].style.stroke = '#aa8844';
+            toChange[i].style.stroke = '#ffffff';
         }
 
         this.loader.addEventListener("click", async () => {
