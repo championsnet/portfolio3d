@@ -1,9 +1,11 @@
 import * as THREE from 'three';
 import Manager from './manager.js';
+import EventEmitter from './utils/event-emitter.js';
 
-export default class Player {
+export default class Player extends EventEmitter {
 
     constructor() {
+        super();
         this.manager = new Manager();
         this.scene = this.manager.scene;
         this.time = this.manager.time;
@@ -62,10 +64,19 @@ export default class Player {
             animation.clampWhenFinished = true;
             animation.setLoop(THREE.LoopOnce);
             this.animations.push(animation);
-            if (i < 2) this.jumps.push(animation);
-            else if (i == 2) this.leftAnimation = animation;
-            else if (i == 3) this.rightAnimation = animation;
+            if (this.resource.animations[i].name.startsWith("Death")) this.deathAnimation = animation;
+            if (this.resource.animations[i].name.startsWith("Jump")) this.jumps.push(animation);
+            if (this.resource.animations[i].name.startsWith("RotateL")) this.leftAnimation = animation;
+            if (this.resource.animations[i].name.startsWith("RotateR")) this.rightAnimation = animation;
         } 
+
+        this.mixer.addEventListener('finished', (e) => { 
+            if (e.action.getClip().name.startsWith("Jump")) {
+                e.action.reset();
+                e.action.stop();
+                this.trigger('finished');
+            }
+        });
     }
 
     randomOffsetVal() {

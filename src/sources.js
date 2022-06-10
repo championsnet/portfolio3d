@@ -8,7 +8,7 @@ export default [
     {
         name: 'alien',
         type: 'gltfModel',
-        path: 'models/alien.gltf'
+        path: 'models/alien2.gltf'
     },
     {
         name: 'panel1d',
@@ -73,43 +73,53 @@ export default [
         path: 'audio/The-Beginning-w-Caturday.mp3'
     },
     {
+        name: 'minigameOst',
+        type: 'audio',
+        path: 'audio/joshuaempyre_arcade-music-loop.mp3'
+    },
+    {
+        name: 'drop',
+        type: 'audio',
+        path: 'audio/bass-drop.mp3'
+    },
+    {
         name: '1C',
         type: 'audio-note',
-        path: 'audio/xylo/1.wav'
+        path: 'audio/xylo/1.mp3'
     },
     {
         name: '1D',
         type: 'audio-note',
-        path: 'audio/xylo/2.wav'
+        path: 'audio/xylo/2.mp3'
     },
     {
         name: '1E',
         type: 'audio-note',
-        path: 'audio/xylo/3.wav'
+        path: 'audio/xylo/3.mp3'
     },
     {
         name: '1F',
         type: 'audio-note',
-        path: 'audio/xylo/4.wav'
+        path: 'audio/xylo/4.mp3'
     },
     {
         name: '1G',
         type: 'audio-note',
-        path: 'audio/xylo/5.wav'
+        path: 'audio/xylo/5.mp3'
     },
     {
         name: '2A',
         type: 'audio-note',
-        path: 'audio/xylo/6.wav'
+        path: 'audio/xylo/6.mp3'
     },
     {
         name: '2B',
         type: 'audio-note',
-        path: 'audio/xylo/7.wav'
+        path: 'audio/xylo/7.mp3'
     },
     {
         name: '2C',
         type: 'audio-note',
-        path: 'audio/xylo/8.wav'
+        path: 'audio/xylo/8.mp3'
     }
 ]

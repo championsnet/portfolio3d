@@ -24,21 +24,22 @@ export default class Audio {
             return (textA < textB) ? -1 : (textA > textB) ? 1 : 0;
         });
         this.xylo = new THREE.Audio(this.listener);
-        this.xylo.setVolume(0.05);
+        this.xylo.setVolume(0.075);
         this.xylo.detune = -100;
 
         this.soundtrack = new THREE.Audio(this.listener);
         this.soundtrack.setBuffer(this.resources.items.soundtrack);
         this.soundtrack.setLoop(true);
-        this.soundtrack.setVolume(0.05);
+        this.soundtrack.setVolume(0.075);
 
-        // START & STOP SOUNDTRACK BASED ON TAB FOCUS
-        window.onfocus = () => {
-            this.soundtrack.play();
-        };
-        window.onblur = () => {
-            this.soundtrack.pause();
-        };
+        this.minigameOst = new THREE.Audio(this.listener);
+        this.minigameOst.setBuffer(this.resources.items.minigameOst);
+        this.minigameOst.setLoop(true);
+        this.minigameOst.setVolume(0.075);
+
+        this.drop = new THREE.Audio(this.listener);
+        this.drop.setBuffer(this.resources.items.drop);
+        this.drop.setVolume(0.5);
 
     }
 

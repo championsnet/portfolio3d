@@ -1,4 +1,3 @@
-import * as THREE from 'three';
 import Manager from './manager.js';
 import './utils/swiped-events';
 
@@ -25,12 +24,14 @@ export default class Controller {
             this.tiles = this.manager.world.tiles;
             this.player = this.manager.player;
             this.audio = this.manager.audio;
+            this.minigame = this.manager.world.minigame;
             this.setTrioRelation();
         });
 
         this.loaderUI.on('start', () => {
             this.logic.actionsAllowed = true;
             this.setControls();
+            this.setAudio();
         });
 
         this.animator.on('actions-ready', () => {
@@ -46,6 +47,21 @@ export default class Controller {
             if (this.tiles[this.player.location].elevator !== null) {
                 this.prepareElevator();
             }
+            if (this.tiles[this.player.location].minigame) {
+                this.audio.soundtrack.pause();
+                if (!this.audio.minigameOst.isPlaying) this.audio.minigameOst.play();
+                this.logic.onMinigame = true;
+                this.minigame.show();
+                this.minigame.start();
+                this.animator.minigame = this.minigame;
+            }
+            if (!this.tiles[this.player.location].minigame && this.logic.onMinigame) {
+                if (!this.audio.soundtrack.isPlaying) this.audio.soundtrack.play();
+                if (this.audio.minigameOst.isPlaying)this.audio.minigameOst.stop();
+                this.logic.onMinigame = false;
+                this.minigame.reset();
+                this.minigame.hide();
+            }
         });
 
         this.animator.on('death-start', () => {
@@ -54,6 +70,27 @@ export default class Controller {
 
         this.animator.on('death-end', () => {
             this.logic.onDeathJump = false;
+        });
+
+        this.animator.on('minijump-start', () => {
+            this.logic.onMiniJump = true;
+        });
+
+        this.animator.on('minijump-end', () => {
+            this.logic.onMiniJump = false;
+            this.minigame.updateActive();
+        });
+
+        this.animator.on('minideath-start', () => {
+            this.logic.onMiniDeath = true;
+        });
+
+        this.animator.on('minideath-end', () => {
+            this.logic.onMiniDeath = false;
+            this.minigame.updateActive();
+            this.logic.onMinigame = false;
+            this.minigame.hide();
+            this.minigame.reset();
         });
 
         this.animator.on('rotation-end', () => {
@@ -68,12 +105,14 @@ export default class Controller {
     }
 
     update() {
-
         if (this.logic.onJump) this.animator.updateJump();
         if (this.logic.onDeathJump) this.animator.updateDeathJump();
         if (this.logic.onRightRotation) this.animator.updateRightRotation();
         if (this.logic.onLeftRotation) this.animator.updateLeftRotation();
         if (this.logic.onElevator) this.animator.updateElevate();
+        if (this.logic.onMiniJump) this.animator.updateMinigameJump();
+        if (this.logic.onMinigame) this.animator.updateMinigame();
+        if (this.logic.onMiniDeath) this.animator.updateMinigameDeath();
     }
 
     setLogic() {
@@ -84,6 +123,8 @@ export default class Controller {
         this.logic.onRightRotation = false;
         this.logic.onLeftRotation = false;
         this.logic.onElevator = false;
+        this.logic.onMinigame = false;
+        this.logic.onMiniJump = false;
     }
 
     // Set relationship of camera, player and directional light
@@ -117,19 +158,41 @@ export default class Controller {
             });
     }
 
+    setAudio() {
+        this.audio.soundtrack.play();
+
+        // START & STOP SOUNDTRACK BASED ON TAB FOCUS
+        window.onfocus = () => {
+            if (!this.logic.onMinigame) this.audio.soundtrack.play();
+            else this.audio.minigameOst.play();
+        };
+        window.onblur = () => {
+            if (!this.logic.onMinigame) this.audio.soundtrack.pause();
+            else this.audio.minigameOst.pause();
+        };
+    }
+
     prepareJump() {
         this.logic.actionsAllowed = false;
         if (this.isJumpAllowed()) {
             this.target = this.getTarget();
             this.animator.jump(this.target);
         }
-        else {
+        else if (!this.logic.onMinigame) {
             this.animator.deathJump();
+        }
+        else {
+            if (this.player.direction != this.minigame.tiles[this.minigame.location+1].rotation) {
+                this.logic.actionsAllowed = true;
+                return;
+            }
+            this.animator.minigameJump();
         }
     }
 
     // Return true if there is a deathless place to jump
     isJumpAllowed() {
+        if (this.logic.onMinigame) if (this.minigame.location != -1) return false; 
         if (this.player.direction in this.tilesResource[this.player.location]) {
             const target = this.tilesResource[this.player.location][this.player.direction]
             if ("elevator" in this.tilesResource[target]) {
@@ -172,5 +235,4 @@ export default class Controller {
         this.animator.elevate(this.target);
         this.logic.onElevator = true;
     }
-
 }

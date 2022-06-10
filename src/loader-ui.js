@@ -71,7 +71,6 @@ export default class LoaderUI extends EventEmitter {
         this.loader.addEventListener("click", async () => {
             this.loader.classList.add('hidden');
             this.audio.setAudio();
-            this.audio.soundtrack.play();
 
             // Some browsers need it
             this.sizes.resize();

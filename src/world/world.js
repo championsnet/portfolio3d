@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import Manager from '../manager.js';
 import Tile from './tile.js';
 import Panel from './panel.js';
+import Minigame from './minigame.js';
 
 export default class World {
 
@@ -17,15 +18,19 @@ export default class World {
         this.tileDepth = 9;
         this.tileColor = 0xa1811a;
         this.elevatorColor = 0xFF5733;
+        this.minigameColor = 0x3CBD3C;
         this.tileGeometry = new THREE.BoxGeometry(this.tileWidth, this.tileHeight, this.tileDepth);
         this.tileMaterial = new THREE.MeshPhongMaterial({color: this.tileColor});
         this.elevatorMaterial = new THREE.MeshPhongMaterial({color: this.elevatorColor});
+        this.minigameMaterial = new THREE.MeshPhongMaterial({color: this.minigameColor});
         this.tiles = [];
+        this.minigame = null;
         
         // Wait for resources
         this.resources.on('ready', () => {
             this.createTiles();
             this.createHills();
+            this.createMinigame();
         });
     }
 
@@ -34,6 +39,11 @@ export default class World {
         for (const tileMap of this.resources.items.tiles) {
             const vector = new THREE.Vector3(tileMap.x, tileMap.y, tileMap.z);
             const tile = new Tile(vector, i, this.tileGeometry, this.tileMaterial);
+            if ("minigame" in tileMap) {
+                tile.minigame = true;
+                this.minigameHome = tile;
+                tile.instance.material = this.minigameMaterial;
+            }
             if ("elevator" in tileMap) {
                 tile.setElevator(tileMap, this.elevatorMaterial);
             }
@@ -69,5 +79,9 @@ export default class World {
         this.scene.add(this.hills);
         this.hills.position.set(0, -20, 30);
         this.hills.scale.set(30, 30, 30);
+    }
+
+    createMinigame() {
+        this.minigame = new Minigame(this.minigameHome);
     }
 }

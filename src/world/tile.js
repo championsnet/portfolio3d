@@ -15,6 +15,7 @@ export default class Tile {
         this.id = _id;
         this.panel = null;
         this.elevator = null;
+        this.minigame = false;
 
         this.makeTile();
 

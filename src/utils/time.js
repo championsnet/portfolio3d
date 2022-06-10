@@ -12,6 +12,11 @@ export default class Time extends EventEmitter
         this.elapsed = 0;
         this.delta = 16;
 
+        // Morning to afternoon, afternoon to evening, evening, to morning hours
+        this.m2a = 17;
+        this.a2e = 22;
+        this.e2m = 7;
+
         window.requestAnimationFrame(() =>
         {
             this.tick();
@@ -37,8 +42,8 @@ export default class Time extends EventEmitter
         const d = new Date();
         const hour = d.getHours();
 
-        if (hour > 6 && hour < 17) return 0xe6ffff;
-        else if (hour >= 17 && hour < 22) return 0xFAD6A5;
+        if (hour > this.e2m && hour < this.m2a) return 0xe6ffff;
+        else if (hour >= this.m2a && hour < this.a2e) return 0xFAD6A5;
         else return 0x3e3a52;
     }
 
@@ -46,8 +51,17 @@ export default class Time extends EventEmitter
         const d = new Date();
         const hour = d.getHours();
 
-        if (hour > 6 && hour < 17) return 0xe6ffff;
-        else if (hour >= 17 && hour < 22) return 0xdba579;
+        if (hour > this.e2m && hour < this.m2a) return 0xe6ffff;
+        else if (hour >= this.m2a && hour < this.a2e) return 0xdba579;
         else return 0x080429;
+    }
+
+    getTimeOfDay() {
+        const d = new Date();
+        const hour = d.getHours();
+        
+        if (hour > this.e2m && hour < this.m2a) return 'm';
+        else if (hour >= this.m2a && hour < this.a2e) return 'a';
+        else return 'e';
     }
 }
