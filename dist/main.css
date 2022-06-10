@@ -145,22 +145,22 @@ canvas:focus {
   99% { stroke: #F04F38; }
 }
 
-.load-message {
+.load-message-div {
   position: fixed;
   width: 100%;
   text-align: center;
-  font-size: 2vw;
+  font-size: 28pt;
   display: table-cell;
   vertical-align: middle;
   top: 25%;
   transform: translateY(-75%);
 }
 
-#start {
+.start {
   position: fixed;
   width: 100%;
   text-align: center;
-  font-size: 2.5vw;
+  font-size: 30pt;
   display: table-cell;
   vertical-align: middle;
   opacity: 0;
@@ -179,11 +179,11 @@ canvas:focus {
   position: fixed;
 }
 
-#load-message-2 {
+.load-message-2 {
   position: fixed;
   width: 100%;
   text-align: center;
-  font-size: 1.5vw;
+  font-size: 22pt;
   display: table-cell;
   vertical-align: middle;
   top: 80%;
@@ -191,7 +191,42 @@ canvas:focus {
 }
 
 @media (hover: hover) and (pointer: fine) {
-  #start:hover { color: #F04F38; font-size: 2.7vw; }
+  #start:hover { color: #F04F38; font-size: 34pt; }
+}
+
+.score {
+  z-index: 999999;
+  position: fixed;
+  text-align: center;
+  width: 100%;
+  top: 10vh;
+  font-size: 10vh;
+  font-family: 'ArcadeClassic', sans-serif;
+  color: #6db81d;
+  visibility: hidden;
+}
+
+.score-visibility{
+  visibility: hidden;
+}
+
+.score-animation {
+  -webkit-animation: spotlight 1s linear;
+          animation: spotlight 1s linear;
+}
+
+@keyframes spotlight {
+  0%  { font-size: 10vh; 
+        opacity: 1;}
+  99% { font-size: 20vh; 
+        opacity: 0.5;}
+}
+
+@-webkit-keyframes spotlight {
+  0%  { font-size: 10vh; 
+        opacity: 1;}
+  99% { font-size: 20vh; 
+        opacity: 0.2;}
 }
 
 

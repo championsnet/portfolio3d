@@ -35,7 +35,7 @@ export default class Minigame {
         // How many tiles the player will see behind him !! TODO use it !!
         this.backTiles = 1;
         // How many tiles the minigame will hold in total
-        this.totalTiles = 10;
+        this.totalTiles = 50;
 
         this.prepare();
     }

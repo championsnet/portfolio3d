@@ -346,7 +346,6 @@ export default class Animator extends EventEmitter {
     }
 
     minigameJump() {
-        console.log("Started Minigame Jump");
         this.randomJump = this.findRandom(this.jumps.length);
         this.jumps[this.randomJump].setDuration(6*this.jumpDuration/5);
         this.jumps[this.randomJump].play();
@@ -448,8 +447,6 @@ export default class Animator extends EventEmitter {
             this.playerVelocity.y = 0;
             this.playerVelocity.z = 0;
             this.playerVelocity.x = 0;
-
-            console.log("Jump landed correctly: " + this.validateMiniJump());
             
             if (this.validateMiniJump()) {
                 this.minigame.location = this.target;
@@ -608,6 +605,15 @@ export default class Animator extends EventEmitter {
 
     minigameVictory() {
         this.minigame.victory();
+        this.audio.minigameOst.stop();
+        this.audio.victory.play();
+        
+        setTimeout(() => {
+            this.player.victoryAnimation.play();
+            this.player.on('victory-finished', () => {
+                this.trigger('victory-finished');
+            })
+        }, 50);
     }
 
     rotatePlayer(direction) {

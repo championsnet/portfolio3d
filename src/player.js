@@ -68,6 +68,7 @@ export default class Player extends EventEmitter {
             if (this.resource.animations[i].name.startsWith("Jump")) this.jumps.push(animation);
             if (this.resource.animations[i].name.startsWith("RotateL")) this.leftAnimation = animation;
             if (this.resource.animations[i].name.startsWith("RotateR")) this.rightAnimation = animation;
+            if (this.resource.animations[i].name.startsWith("Victory")) this.victoryAnimation = animation;
         } 
 
         this.mixer.addEventListener('finished', (e) => { 
@@ -75,6 +76,9 @@ export default class Player extends EventEmitter {
                 e.action.reset();
                 e.action.stop();
                 this.trigger('finished');
+            }
+            if (e.action.getClip().name.startsWith("Victory")) {
+                this.trigger('victory-finished');
             }
         });
     }

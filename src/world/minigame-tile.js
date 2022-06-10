@@ -13,7 +13,7 @@ export default class MinigameTile extends Tile {
             this.rotator = true;
         }
         this.speed = this.findRandom(1, 2 + Math.floor(_id/10));
-        this.variation = this.findRandom(5, 5 + Math.floor(_id/2));
+        this.variation = this.findRandom(5, 7 + Math.floor(_id/2) - this.speed * 2);
 
         this.rotation = "right";
         this.recordedSpeed = 0;

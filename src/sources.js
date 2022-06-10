@@ -8,7 +8,7 @@ export default [
     {
         name: 'alien',
         type: 'gltfModel',
-        path: 'models/alien2.gltf'
+        path: 'models/alien.gltf'
     },
     {
         name: 'panel1d',
@@ -76,6 +76,11 @@ export default [
         name: 'minigameOst',
         type: 'audio',
         path: 'audio/joshuaempyre_arcade-music-loop.mp3'
+    },
+    {
+        name: 'victory',
+        type: 'audio',
+        path: 'audio/victory.wav'
     },
     {
         name: 'drop',

@@ -101,6 +101,13 @@ export default class Controller {
         this.animator.on('elevate-end', () => {
             this.logic.onElevator = false;
         });
+
+
+        this.animator.on("victory-finished", () => {
+            window.onkeypress = () => {
+                location.reload();
+            }
+        }, {once: true});
         
     }
 
